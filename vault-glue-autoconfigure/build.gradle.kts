@@ -1,0 +1,20 @@
+dependencies {
+    // Core
+    implementation("org.springframework.boot:spring-boot-autoconfigure")
+    implementation("org.springframework.cloud:spring-cloud-starter-vault-config")
+    annotationProcessor("org.springframework.boot:spring-boot-configuration-processor")
+
+    // Optional - engine-specific
+    compileOnly("com.zaxxer:HikariCP")
+    compileOnly("org.springframework.boot:spring-boot-starter-actuator")
+    compileOnly("org.springframework.boot:spring-boot-starter-data-jpa")
+    compileOnly("software.amazon.awssdk:auth:2.29.45")
+    compileOnly("org.springframework:spring-jdbc")
+
+    // Logging
+    compileOnly("org.slf4j:slf4j-api")
+
+    // Test
+    testImplementation("org.springframework.boot:spring-boot-starter-test")
+    testImplementation("org.springframework.vault:spring-vault-core")
+}

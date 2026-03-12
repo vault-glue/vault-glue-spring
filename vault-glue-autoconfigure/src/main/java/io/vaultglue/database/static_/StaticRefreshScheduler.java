@@ -1,0 +1,85 @@
+package io.vaultglue.database.static_;
+
+import io.vaultglue.core.FailureStrategyHandler;
+import io.vaultglue.database.DataSourceRotator;
+import io.vaultglue.database.VaultGlueDatabaseProperties.DataSourceProperties;
+import io.vaultglue.database.VaultGlueDelegatingDataSource;
+import java.time.Duration;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+public class StaticRefreshScheduler {
+
+    private static final Logger log = LoggerFactory.getLogger(StaticRefreshScheduler.class);
+
+    private final StaticCredentialProvider credentialProvider;
+    private final DataSourceRotator rotator;
+    private final FailureStrategyHandler failureStrategyHandler;
+    private final ScheduledExecutorService scheduler;
+    private final AtomicInteger executionCount = new AtomicInteger(0);
+
+    public StaticRefreshScheduler(StaticCredentialProvider credentialProvider,
+                                   DataSourceRotator rotator,
+                                   FailureStrategyHandler failureStrategyHandler) {
+        this.credentialProvider = credentialProvider;
+        this.rotator = rotator;
+        this.failureStrategyHandler = failureStrategyHandler;
+        this.scheduler = Executors.newSingleThreadScheduledExecutor(r -> {
+            Thread t = new Thread(r, "vault-glue-static-refresh");
+            t.setDaemon(true);
+            return t;
+        });
+    }
+
+    public void schedule(String name, VaultGlueDelegatingDataSource delegating,
+                         DataSourceProperties props) {
+        long interval = props.getRefreshInterval();
+        log.info("[VaultGlue] Scheduling static credential refresh for '{}' every {}ms", name, interval);
+
+        scheduler.scheduleAtFixedRate(
+                () -> refresh(name, delegating, props),
+                interval, interval, TimeUnit.MILLISECONDS
+        );
+    }
+
+    private void refresh(String name, VaultGlueDelegatingDataSource delegating,
+                         DataSourceProperties props) {
+        int count = executionCount.incrementAndGet();
+        log.info("[VaultGlue] Static credential refresh #{} for '{}'", count, name);
+
+        try {
+            StaticCredentialProvider.DbCredential cred =
+                    credentialProvider.getCredential(props.getBackend(), props.getRole());
+
+            rotator.rotate(delegating, props, cred.username(), cred.password(),
+                    Duration.ofMillis(props.getRefreshInterval()));
+
+            log.info("[VaultGlue] Static credential refresh #{} completed for '{}'", count, name);
+        } catch (Exception e) {
+            log.error("[VaultGlue] Static credential refresh #{} failed for '{}'", count, name, e);
+            failureStrategyHandler.handle("database", name, e, () -> {
+                StaticCredentialProvider.DbCredential cred =
+                        credentialProvider.getCredential(props.getBackend(), props.getRole());
+                rotator.rotate(delegating, props, cred.username(), cred.password(),
+                        Duration.ofMillis(props.getRefreshInterval()));
+                return null;
+            });
+        }
+    }
+
+    public void shutdown() {
+        scheduler.shutdown();
+        try {
+            if (!scheduler.awaitTermination(10, TimeUnit.SECONDS)) {
+                scheduler.shutdownNow();
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            scheduler.shutdownNow();
+        }
+    }
+}

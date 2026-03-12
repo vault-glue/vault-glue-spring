@@ -1,0 +1,8 @@
+io.vaultglue.autoconfigure.VaultGlueCoreAutoConfiguration
+io.vaultglue.autoconfigure.VaultGlueDatabaseAutoConfiguration
+io.vaultglue.autoconfigure.VaultGlueKvAutoConfiguration
+io.vaultglue.autoconfigure.VaultGlueTransitAutoConfiguration
+io.vaultglue.autoconfigure.VaultGluePkiAutoConfiguration
+io.vaultglue.autoconfigure.VaultGlueTotpAutoConfiguration
+io.vaultglue.autoconfigure.VaultGlueAwsAutoConfiguration
+io.vaultglue.autoconfigure.VaultGlueHealthAutoConfiguration
