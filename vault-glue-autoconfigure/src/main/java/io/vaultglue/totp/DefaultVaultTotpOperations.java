@@ -42,6 +42,18 @@ public class DefaultVaultTotpOperations implements VaultTotpOperations {
     }
 
     @Override
+    public String generateCode(String name) {
+        String path = properties.getBackend() + "/code/" + name;
+        log.debug("[VaultGlue] Generating TOTP code for: {}", name);
+
+        VaultResponse response = vaultTemplate.read(path);
+        if (response == null || response.getData() == null) {
+            throw new RuntimeException("[VaultGlue] Failed to generate TOTP code for: " + name);
+        }
+        return (String) response.getData().get("code");
+    }
+
+    @Override
     public boolean validate(String name, String code) {
         String path = properties.getBackend() + "/code/" + name;
 

@@ -3,6 +3,7 @@ package io.vaultglue.pki;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -60,7 +61,9 @@ public class DefaultVaultPkiOperations implements VaultPkiOperations {
                 (String) data.get("certificate"),
                 (String) data.get("private_key"),
                 (String) data.get("issuing_ca"),
-                (String) data.get("ca_chain"),
+                data.get("ca_chain") instanceof List<?> chain
+                        ? chain.stream().map(Object::toString).toList()
+                        : List.of(),
                 (String) data.get("serial_number"),
                 parseExpiration(data.get("expiration"))
         );
@@ -89,8 +92,14 @@ public class DefaultVaultPkiOperations implements VaultPkiOperations {
             return Instant.ofEpochSecond(n.longValue());
         }
         if (expiration instanceof String s) {
-            return Instant.ofEpochSecond(Long.parseLong(s));
+            try {
+                return Instant.ofEpochSecond(Long.parseLong(s));
+            } catch (NumberFormatException e) {
+                log.error("[VaultGlue] Failed to parse PKI expiration value: '{}'", s);
+                throw new RuntimeException("[VaultGlue] Invalid PKI expiration format: " + s, e);
+            }
         }
-        return Instant.now().plus(Duration.ofHours(72));
+        log.error("[VaultGlue] PKI expiration is null or unknown type: {}", expiration);
+        throw new RuntimeException("[VaultGlue] Missing or invalid PKI expiration in Vault response");
     }
 }

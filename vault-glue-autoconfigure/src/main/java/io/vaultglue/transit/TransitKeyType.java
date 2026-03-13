@@ -1,5 +1,7 @@
 package io.vaultglue.transit;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+
 public enum TransitKeyType {
 
     AES128_GCM96("aes128-gcm96"),
@@ -23,6 +25,7 @@ public enum TransitKeyType {
         return value;
     }
 
+    @JsonCreator
     public static TransitKeyType fromValue(String value) {
         for (TransitKeyType type : values()) {
             if (type.value.equals(value)) {

@@ -9,26 +9,22 @@ import javax.sql.DataSource;
 
 public class VaultGlueDelegatingDataSource implements DataSource {
 
-    private volatile DataSource delegate;
+    private volatile DelegateHolder holder;
     private final String name;
-    private volatile Instant lastRotationTime;
-    private volatile String currentUsername;
+
+    private record DelegateHolder(DataSource delegate, String username, Instant rotationTime) {}
 
     public VaultGlueDelegatingDataSource(String name, DataSource initial, String username) {
         this.name = name;
-        this.delegate = initial;
-        this.lastRotationTime = Instant.now();
-        this.currentUsername = username;
+        this.holder = new DelegateHolder(initial, username, Instant.now());
     }
 
     public void setDelegate(DataSource newDelegate, String newUsername) {
-        this.delegate = newDelegate;
-        this.currentUsername = newUsername;
-        this.lastRotationTime = Instant.now();
+        this.holder = new DelegateHolder(newDelegate, newUsername, Instant.now());
     }
 
     public DataSource getDelegate() {
-        return delegate;
+        return holder.delegate();
     }
 
     public String getName() {
@@ -36,41 +32,41 @@ public class VaultGlueDelegatingDataSource implements DataSource {
     }
 
     public Instant getLastRotationTime() {
-        return lastRotationTime;
+        return holder.rotationTime();
     }
 
     public String getCurrentUsername() {
-        return currentUsername;
+        return holder.username();
     }
 
     @Override
     public Connection getConnection() throws SQLException {
-        return delegate.getConnection();
+        return holder.delegate().getConnection();
     }
 
     @Override
     public Connection getConnection(String username, String password) throws SQLException {
-        return delegate.getConnection(username, password);
+        return holder.delegate().getConnection(username, password);
     }
 
     @Override
     public PrintWriter getLogWriter() throws SQLException {
-        return delegate.getLogWriter();
+        return holder.delegate().getLogWriter();
     }
 
     @Override
     public void setLogWriter(PrintWriter out) throws SQLException {
-        delegate.setLogWriter(out);
+        holder.delegate().setLogWriter(out);
     }
 
     @Override
     public void setLoginTimeout(int seconds) throws SQLException {
-        delegate.setLoginTimeout(seconds);
+        holder.delegate().setLoginTimeout(seconds);
     }
 
     @Override
     public int getLoginTimeout() throws SQLException {
-        return delegate.getLoginTimeout();
+        return holder.delegate().getLoginTimeout();
     }
 
     @Override
@@ -83,11 +79,11 @@ public class VaultGlueDelegatingDataSource implements DataSource {
         if (iface.isInstance(this)) {
             return iface.cast(this);
         }
-        return delegate.unwrap(iface);
+        return holder.delegate().unwrap(iface);
     }
 
     @Override
     public boolean isWrapperFor(Class<?> iface) throws SQLException {
-        return iface.isInstance(this) || delegate.isWrapperFor(iface);
+        return iface.isInstance(this) || holder.delegate().isWrapperFor(iface);
     }
 }

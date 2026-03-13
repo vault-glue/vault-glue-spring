@@ -1,6 +1,8 @@
 package io.vaultglue.transit;
 
 import jakarta.persistence.AttributeConverter;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationContext;
@@ -8,25 +10,28 @@ import org.springframework.context.ApplicationContext;
 /**
  * JPA AttributeConverter that encrypts/decrypts field values using Vault Transit.
  *
- * <p>Usage with @VaultEncrypt annotation:
+ * <p>Ciphertext is stored as {@code vg:{keyName}:vault:v1:...} to track which key was used.
+ * This allows different fields to use different Transit keys via a single converter.
+ *
+ * <p>Usage:
  * <pre>
  * {@code
  * @Entity
  * public class User {
  *     @Convert(converter = VaultEncryptConverter.class)
- *     @VaultEncrypt(key = "user-pii")
- *     private String residentNumber;
+ *     private String residentNumber;  // encrypted with the defaultKeyName
  * }
  * }
  * </pre>
- *
- * <p>Note: This converter requires a static ApplicationContext reference
- * because JPA instantiates converters outside of Spring's control.
  */
 public class VaultEncryptConverter implements AttributeConverter<String, String> {
 
     private static final Logger log = LoggerFactory.getLogger(VaultEncryptConverter.class);
-    private static final String VAULT_PREFIX = "vault:v";
+
+    /** Format: vg:{keyName}:vault:v1:ciphertext */
+    private static final String VG_PREFIX = "vg:";
+    private static final Pattern VG_PATTERN = Pattern.compile("^vg:([^:]+):(vault:v\\d+:.+)$");
+    private static final Pattern VAULT_CIPHERTEXT_PATTERN = Pattern.compile("^vault:v\\d+:.+");
 
     private static volatile ApplicationContext applicationContext;
     private static volatile String defaultKeyName;
@@ -42,7 +47,9 @@ public class VaultEncryptConverter implements AttributeConverter<String, String>
 
         try {
             VaultTransitOperations transit = getTransitOperations();
-            return transit.encrypt(defaultKeyName, attribute);
+            String ciphertext = transit.encrypt(defaultKeyName, attribute);
+            // Include key name as prefix so the correct key can be identified during decryption
+            return VG_PREFIX + defaultKeyName + ":" + ciphertext;
         } catch (Exception e) {
             log.error("[VaultGlue] Failed to encrypt field value", e);
             throw new RuntimeException("Vault transit encryption failed", e);
@@ -53,16 +60,29 @@ public class VaultEncryptConverter implements AttributeConverter<String, String>
     public String convertToEntityAttribute(String dbData) {
         if (dbData == null) return null;
 
-        // 미암호화 데이터 호환 (마이그레이션 중)
-        if (!dbData.startsWith(VAULT_PREFIX)) {
-            return dbData;
+        // vg:{keyName}:vault:v1:xxx format (new format)
+        Matcher vgMatcher = VG_PATTERN.matcher(dbData);
+        if (vgMatcher.matches()) {
+            String keyName = vgMatcher.group(1);
+            String ciphertext = vgMatcher.group(2);
+            return decryptWith(keyName, ciphertext);
         }
 
+        // vault:v1:xxx format (legacy — decrypt with defaultKeyName)
+        if (VAULT_CIPHERTEXT_PATTERN.matcher(dbData).matches()) {
+            return decryptWith(defaultKeyName, dbData);
+        }
+
+        // Unencrypted data (migration in progress)
+        return dbData;
+    }
+
+    private String decryptWith(String keyName, String ciphertext) {
         try {
             VaultTransitOperations transit = getTransitOperations();
-            return transit.decrypt(defaultKeyName, dbData);
+            return transit.decrypt(keyName, ciphertext);
         } catch (Exception e) {
-            log.error("[VaultGlue] Failed to decrypt field value", e);
+            log.error("[VaultGlue] Failed to decrypt field value with key '{}'", keyName, e);
             throw new RuntimeException("Vault transit decryption failed", e);
         }
     }

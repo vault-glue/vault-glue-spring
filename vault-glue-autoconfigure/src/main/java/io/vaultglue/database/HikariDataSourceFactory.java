@@ -9,7 +9,7 @@ public class HikariDataSourceFactory {
 
     private HikariDataSourceFactory() {}
 
-    public static HikariDataSource create(DataSourceProperties props, String username, String password) {
+    public static HikariDataSource create(String name, DataSourceProperties props, String username, String password) {
         HikariConfig config = new HikariConfig();
         config.setJdbcUrl(props.getJdbcUrl());
         config.setUsername(username);
@@ -28,7 +28,7 @@ public class HikariDataSourceFactory {
             config.setLeakDetectionThreshold(hikari.getLeakDetectionThreshold());
         }
 
-        config.setPoolName("vault-glue-" + System.currentTimeMillis());
+        config.setPoolName("vault-glue-" + name);
 
         return new HikariDataSource(config);
     }

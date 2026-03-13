@@ -5,6 +5,8 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.aop.framework.AopProxyUtils;
+import org.springframework.aop.support.AopUtils;
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.config.BeanPostProcessor;
 import org.springframework.util.ReflectionUtils;
@@ -25,19 +27,32 @@ public class VaultValueBeanPostProcessor implements BeanPostProcessor {
 
     @Override
     public Object postProcessAfterInitialization(Object bean, String beanName) throws BeansException {
-        Class<?> clazz = bean.getClass();
+        Class<?> clazz = AopUtils.getTargetClass(bean);
+        Object target = getTargetObject(bean);
         ReflectionUtils.doWithFields(clazz, field -> {
             VaultValue annotation = field.getAnnotation(VaultValue.class);
             if (annotation == null) return;
 
-            injectValue(bean, field, annotation);
+            injectValue(target, field, annotation);
 
             if (annotation.refresh()) {
                 refreshableFields
-                        .computeIfAbsent(bean, k -> new ConcurrentHashMap<>())
+                        .computeIfAbsent(target, k -> new ConcurrentHashMap<>())
                         .put(field, annotation);
             }
         });
+        return bean;
+    }
+
+    private Object getTargetObject(Object bean) {
+        if (AopUtils.isAopProxy(bean)) {
+            try {
+                return AopProxyUtils.getSingletonTarget(bean) != null
+                        ? AopProxyUtils.getSingletonTarget(bean) : bean;
+            } catch (Exception e) {
+                return bean;
+            }
+        }
         return bean;
     }
 

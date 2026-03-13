@@ -33,7 +33,7 @@ public interface VaultTransitOperations {
     // Sign / Verify
     String sign(String keyName, String data);
 
-    String sign(String keyName, String data, String algorithm);
+    String sign(String keyName, String data, String hashAlgorithm, String signatureAlgorithm);
 
     boolean verify(String keyName, String data, String signature);
 

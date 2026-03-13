@@ -11,6 +11,7 @@ import org.springframework.vault.core.VaultKeyValueOperations;
 import org.springframework.vault.core.VaultKeyValueOperationsSupport.KeyValueBackend;
 import org.springframework.vault.core.VaultTemplate;
 import org.springframework.vault.support.VaultResponse;
+import org.springframework.vault.support.Versioned;
 
 public class DefaultVaultKvOperations implements VaultKvOperations {
 
@@ -60,18 +61,15 @@ public class DefaultVaultKvOperations implements VaultKvOperations {
             throw new UnsupportedOperationException("Versioned get is only supported with KV v2");
         }
         log.debug("[VaultGlue] KV get version {}: {}", version, path);
-        var response = kvOps.get(path);
-        // Spring Vault의 KV v2 ops에서 version 지정은 직접 VaultTemplate으로 처리
-        String fullPath = properties.getBackend() + "/data/" + path;
-        var vaultResponse = vaultTemplate.read(fullPath + "?version=" + version);
-        if (vaultResponse == null || vaultResponse.getData() == null) {
+        var versionedOps = vaultTemplate.opsForVersionedKeyValue(properties.getBackend());
+        @SuppressWarnings("unchecked")
+        Versioned<Map<String, Object>> versioned =
+                (Versioned<Map<String, Object>>) (Versioned<?>)
+                        versionedOps.get(path, Versioned.Version.from(version));
+        if (versioned == null || versioned.getData() == null) {
             return Collections.emptyMap();
         }
-        Object data = vaultResponse.getData().get("data");
-        if (data instanceof Map) {
-            return (Map<String, Object>) data;
-        }
-        return Collections.emptyMap();
+        return versioned.getData();
     }
 
     @Override

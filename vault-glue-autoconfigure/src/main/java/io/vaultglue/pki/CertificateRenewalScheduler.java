@@ -37,6 +37,13 @@ public class CertificateRenewalScheduler {
             return;
         }
 
+        if (properties.getRole() == null || properties.getRole().isBlank()) {
+            throw new IllegalStateException("[VaultGlue] PKI 'vault-glue.pki.role' is required when auto-renew is enabled");
+        }
+        if (properties.getCommonName() == null || properties.getCommonName().isBlank()) {
+            throw new IllegalStateException("[VaultGlue] PKI 'vault-glue.pki.common-name' is required when auto-renew is enabled");
+        }
+
         // Initial issue
         try {
             pkiOperations.issue(properties.getRole(), properties.getCommonName(),
@@ -62,6 +69,18 @@ public class CertificateRenewalScheduler {
                 log.info("[VaultGlue] Certificate expiring soon (remaining={}h), renewing...",
                         current != null ? current.getRemainingHours() : 0);
 
+                // Revoke the previous certificate
+                if (current != null && current.serialNumber() != null) {
+                    try {
+                        pkiOperations.revoke(current.serialNumber());
+                        log.info("[VaultGlue] Previous certificate revoked: serial={}",
+                                current.serialNumber());
+                    } catch (Exception revokeEx) {
+                        log.warn("[VaultGlue] Failed to revoke previous certificate: serial={}",
+                                current.serialNumber(), revokeEx);
+                    }
+                }
+
                 CertificateBundle renewed = pkiOperations.issue(
                         properties.getRole(),
                         properties.getCommonName(),
@@ -79,7 +98,9 @@ public class CertificateRenewalScheduler {
     }
 
     private Duration parseTtl(String ttl) {
-        if (ttl.endsWith("h")) {
+        if (ttl.endsWith("d")) {
+            return Duration.ofDays(Long.parseLong(ttl.replace("d", "")));
+        } else if (ttl.endsWith("h")) {
             return Duration.ofHours(Long.parseLong(ttl.replace("h", "")));
         } else if (ttl.endsWith("m")) {
             return Duration.ofMinutes(Long.parseLong(ttl.replace("m", "")));

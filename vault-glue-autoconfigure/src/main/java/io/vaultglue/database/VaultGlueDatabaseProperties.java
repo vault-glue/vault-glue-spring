@@ -17,10 +17,14 @@ public class VaultGlueDatabaseProperties {
         this.sources = sources;
     }
 
+    public enum DataSourceType {
+        STATIC, DYNAMIC
+    }
+
     public static class DataSourceProperties {
         private boolean enabled = true;
         private boolean primary = false;
-        private String type;  // "static" | "dynamic"
+        private DataSourceType type;
         private String role;
         private String backend = "db";
         private String jdbcUrl;
@@ -32,8 +36,8 @@ public class VaultGlueDatabaseProperties {
         public void setEnabled(boolean enabled) { this.enabled = enabled; }
         public boolean isPrimary() { return primary; }
         public void setPrimary(boolean primary) { this.primary = primary; }
-        public String getType() { return type; }
-        public void setType(String type) { this.type = type; }
+        public DataSourceType getType() { return type; }
+        public void setType(DataSourceType type) { this.type = type; }
         public String getRole() { return role; }
         public void setRole(String role) { this.role = role; }
         public String getBackend() { return backend; }

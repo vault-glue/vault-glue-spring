@@ -1,5 +1,6 @@
 package io.vaultglue.transit;
 
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.HashMap;
@@ -37,9 +38,9 @@ public class DefaultVaultTransitOperations implements VaultTransitOperations {
     @Override
     public String encrypt(String keyName, String plaintext, String context) {
         Map<String, Object> body = new HashMap<>();
-        body.put("plaintext", Base64.getEncoder().encodeToString(plaintext.getBytes()));
+        body.put("plaintext", Base64.getEncoder().encodeToString(plaintext.getBytes(StandardCharsets.UTF_8)));
         if (context != null && !context.isEmpty()) {
-            body.put("context", Base64.getEncoder().encodeToString(context.getBytes()));
+            body.put("context", Base64.getEncoder().encodeToString(context.getBytes(StandardCharsets.UTF_8)));
         }
 
         VaultResponse response = vaultTemplate.write(transitPath("encrypt/" + keyName), body);
@@ -56,12 +57,12 @@ public class DefaultVaultTransitOperations implements VaultTransitOperations {
         Map<String, Object> body = new HashMap<>();
         body.put("ciphertext", ciphertext);
         if (context != null && !context.isEmpty()) {
-            body.put("context", Base64.getEncoder().encodeToString(context.getBytes()));
+            body.put("context", Base64.getEncoder().encodeToString(context.getBytes(StandardCharsets.UTF_8)));
         }
 
         VaultResponse response = vaultTemplate.write(transitPath("decrypt/" + keyName), body);
         String base64Plaintext = extractString(response, "plaintext");
-        return new String(Base64.getDecoder().decode(base64Plaintext));
+        return new String(Base64.getDecoder().decode(base64Plaintext), StandardCharsets.UTF_8);
     }
 
     // ─── Batch ───────────────────────────────────────────────────
@@ -70,7 +71,7 @@ public class DefaultVaultTransitOperations implements VaultTransitOperations {
     @SuppressWarnings("unchecked")
     public List<String> encryptBatch(String keyName, List<String> plaintexts) {
         List<Map<String, String>> batchInput = plaintexts.stream()
-                .map(p -> Map.of("plaintext", Base64.getEncoder().encodeToString(p.getBytes())))
+                .map(p -> Map.of("plaintext", Base64.getEncoder().encodeToString(p.getBytes(StandardCharsets.UTF_8))))
                 .toList();
 
         VaultResponse response = vaultTemplate.write(
@@ -93,7 +94,7 @@ public class DefaultVaultTransitOperations implements VaultTransitOperations {
 
         List<String> base64Results = extractBatchResults(response, "plaintext");
         return base64Results.stream()
-                .map(b64 -> new String(Base64.getDecoder().decode(b64)))
+                .map(b64 -> new String(Base64.getDecoder().decode(b64), StandardCharsets.UTF_8))
                 .toList();
     }
 
@@ -130,7 +131,7 @@ public class DefaultVaultTransitOperations implements VaultTransitOperations {
     @Override
     public String hmac(String keyName, String data, String algorithm) {
         Map<String, Object> body = new HashMap<>();
-        body.put("input", Base64.getEncoder().encodeToString(data.getBytes()));
+        body.put("input", Base64.getEncoder().encodeToString(data.getBytes(StandardCharsets.UTF_8)));
         if (algorithm != null) {
             body.put("algorithm", algorithm);
         }
@@ -142,7 +143,7 @@ public class DefaultVaultTransitOperations implements VaultTransitOperations {
     @Override
     public boolean verifyHmac(String keyName, String data, String hmac) {
         Map<String, Object> body = new HashMap<>();
-        body.put("input", Base64.getEncoder().encodeToString(data.getBytes()));
+        body.put("input", Base64.getEncoder().encodeToString(data.getBytes(StandardCharsets.UTF_8)));
         body.put("hmac", hmac);
 
         VaultResponse response = vaultTemplate.write(transitPath("verify/" + keyName), body);
@@ -153,15 +154,18 @@ public class DefaultVaultTransitOperations implements VaultTransitOperations {
 
     @Override
     public String sign(String keyName, String data) {
-        return sign(keyName, data, null);
+        return sign(keyName, data, null, null);
     }
 
     @Override
-    public String sign(String keyName, String data, String algorithm) {
+    public String sign(String keyName, String data, String hashAlgorithm, String signatureAlgorithm) {
         Map<String, Object> body = new HashMap<>();
-        body.put("input", Base64.getEncoder().encodeToString(data.getBytes()));
-        if (algorithm != null) {
-            body.put("signature_algorithm", algorithm);
+        body.put("input", Base64.getEncoder().encodeToString(data.getBytes(StandardCharsets.UTF_8)));
+        if (hashAlgorithm != null) {
+            body.put("hash_algorithm", hashAlgorithm);
+        }
+        if (signatureAlgorithm != null) {
+            body.put("signature_algorithm", signatureAlgorithm);
         }
 
         VaultResponse response = vaultTemplate.write(transitPath("sign/" + keyName), body);
@@ -171,7 +175,7 @@ public class DefaultVaultTransitOperations implements VaultTransitOperations {
     @Override
     public boolean verify(String keyName, String data, String signature) {
         Map<String, Object> body = new HashMap<>();
-        body.put("input", Base64.getEncoder().encodeToString(data.getBytes()));
+        body.put("input", Base64.getEncoder().encodeToString(data.getBytes(StandardCharsets.UTF_8)));
         body.put("signature", signature);
 
         VaultResponse response = vaultTemplate.write(transitPath("verify/" + keyName), body);

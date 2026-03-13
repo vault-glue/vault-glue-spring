@@ -27,7 +27,7 @@ public class VaultGlueHealthIndicator implements HealthIndicator {
             VaultGlueDelegatingDataSource ds = entry.getValue();
             Map<String, Object> details = new LinkedHashMap<>();
 
-            details.put("lastRotation", ds.getLastRotationTime().toString());
+            details.put("lastRotation", ds.getLastRotationTime());
             details.put("currentUsername", ds.getCurrentUsername());
 
             if (ds.getDelegate() instanceof HikariDataSource hikari) {

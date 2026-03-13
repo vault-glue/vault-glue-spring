@@ -44,7 +44,7 @@ public class VaultGlueTransitAutoConfiguration {
     static class VaultEncryptConverterInitializer {
         VaultEncryptConverterInitializer(ApplicationContext applicationContext,
                                           VaultGlueTransitProperties properties) {
-            // 첫 번째 키를 기본 키로 사용
+            // Use the first key as the default key
             String defaultKey = properties.getKeys().isEmpty()
                     ? "default"
                     : properties.getKeys().keySet().iterator().next();

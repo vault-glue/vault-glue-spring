@@ -79,17 +79,25 @@ public class VaultGlueDatabaseAutoConfiguration {
 
             log.info("[VaultGlue] Initializing DataSource '{}' (type={})", name, props.getType());
 
-            VaultGlueDelegatingDataSource ds;
-            if ("static".equalsIgnoreCase(props.getType())) {
-                ds = createStaticDataSource(name, props, credentialProvider, refreshScheduler);
-            } else if ("dynamic".equalsIgnoreCase(props.getType())) {
-                ds = createDynamicDataSource(name, props, vaultTemplate, leaseContainer,
-                        rotator, eventPublisher, failureStrategyHandler);
-            } else {
+            if (props.getType() == null) {
                 throw new IllegalArgumentException(
-                        "Unknown database type '" + props.getType() + "' for '" + name
+                        "[VaultGlue] DataSource type is required for '" + name
                                 + "'. Supported: static, dynamic");
             }
+            if (props.getRole() == null || props.getRole().isBlank()) {
+                throw new IllegalArgumentException(
+                        "[VaultGlue] DataSource role is required for '" + name + "'");
+            }
+            if (props.getJdbcUrl() == null || props.getJdbcUrl().isBlank()) {
+                throw new IllegalArgumentException(
+                        "[VaultGlue] DataSource jdbc-url is required for '" + name + "'");
+            }
+
+            VaultGlueDelegatingDataSource ds = switch (props.getType()) {
+                case STATIC -> createStaticDataSource(name, props, credentialProvider, refreshScheduler);
+                case DYNAMIC -> createDynamicDataSource(name, props, vaultTemplate, leaseContainer,
+                        rotator, eventPublisher, failureStrategyHandler);
+            };
 
             sources.put(name, ds);
             log.info("[VaultGlue] DataSource '{}' initialized", name);
@@ -102,7 +110,7 @@ public class VaultGlueDatabaseAutoConfiguration {
     @ConditionalOnMissingBean(DataSource.class)
     public DataSource dataSource(VaultGlueDataSources vaultGlueDataSources,
                                   VaultGlueDatabaseProperties databaseProperties) {
-        // primary로 설정된 것 찾기
+        // Find the source marked as primary
         for (var entry : databaseProperties.getSources().entrySet()) {
             if (entry.getValue().isPrimary() && vaultGlueDataSources.contains(entry.getKey())) {
                 log.info("[VaultGlue] Registering '{}' as primary DataSource", entry.getKey());
@@ -110,7 +118,7 @@ public class VaultGlueDatabaseAutoConfiguration {
             }
         }
 
-        // primary 설정 없으면 첫 번째 것
+        // Fall back to the first source if no primary is configured
         var first = vaultGlueDataSources.getAll().entrySet().iterator();
         if (first.hasNext()) {
             var entry = first.next();
@@ -129,7 +137,7 @@ public class VaultGlueDatabaseAutoConfiguration {
         StaticCredentialProvider.DbCredential cred =
                 credentialProvider.getCredential(props.getBackend(), props.getRole());
 
-        HikariDataSource hikari = HikariDataSourceFactory.create(props, cred.username(), cred.password());
+        HikariDataSource hikari = HikariDataSourceFactory.create(name, props, cred.username(), cred.password());
         VaultGlueDelegatingDataSource delegating =
                 new VaultGlueDelegatingDataSource(name, hikari, cred.username());
 
@@ -145,28 +153,22 @@ public class VaultGlueDatabaseAutoConfiguration {
             VaultGlueEventPublisher eventPublisher,
             FailureStrategyHandler failureStrategyHandler) {
 
-        String credPath = props.getBackend() + "/creds/" + props.getRole();
-        var response = vaultTemplate.read(credPath);
-        if (response == null || response.getData() == null) {
-            throw new RuntimeException(
-                    "[VaultGlue] Failed to read dynamic credential from: " + credPath);
+        if (leaseContainer == null) {
+            throw new IllegalStateException(
+                    "[VaultGlue] SecretLeaseContainer is required for dynamic DataSource '" + name
+                            + "'. Ensure spring-cloud-vault-config is on the classpath.");
         }
 
-        String username = (String) response.getData().get("username");
-        String password = (String) response.getData().get("password");
-
-        HikariDataSource hikari = HikariDataSourceFactory.create(props, username, password);
+        // Start with a placeholder DataSource — replaced via rotation once SecretLeaseContainer issues credentials
+        HikariDataSource placeholder = HikariDataSourceFactory.create(
+                name, props, "placeholder", "placeholder");
         VaultGlueDelegatingDataSource delegating =
-                new VaultGlueDelegatingDataSource(name, hikari, username);
+                new VaultGlueDelegatingDataSource(name, placeholder, "pending");
 
-        if (leaseContainer != null) {
-            DynamicLeaseListener listener = new DynamicLeaseListener(
-                    leaseContainer, rotator, eventPublisher, failureStrategyHandler, vaultTemplate);
-            listener.register(name, delegating, props);
-        } else {
-            log.warn("[VaultGlue] SecretLeaseContainer not available. " +
-                    "Dynamic lease renewal disabled for '{}'", name);
-        }
+        DynamicLeaseListener listener = new DynamicLeaseListener(
+                leaseContainer, rotator, eventPublisher, failureStrategyHandler);
+        // register() requests credentials from SecretLeaseContainer and waits for the initial credential
+        listener.register(name, delegating, props);
 
         return delegating;
     }

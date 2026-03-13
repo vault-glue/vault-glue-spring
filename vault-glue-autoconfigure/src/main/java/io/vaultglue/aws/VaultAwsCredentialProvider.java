@@ -44,32 +44,41 @@ public class VaultAwsCredentialProvider {
 
     private void rotate() {
         try {
-            String credType = "sts".equals(properties.getCredentialType()) ? "sts" : "creds";
+            String credentialType = properties.getCredentialType();
+            // Only iam_user uses /creds/ (GET); others (assumed_role, federation_token, sts) use /sts/ (POST)
+            boolean useStdEndpoint = "iam_user".equals(credentialType);
+            String credType = useStdEndpoint ? "creds" : "sts";
             String path = properties.getBackend() + "/" + credType + "/" + properties.getRole();
 
-            log.debug("[VaultGlue] Fetching AWS credential from: {}", path);
-            VaultResponse response = vaultTemplate.read(path);
+            log.debug("[VaultGlue] Fetching AWS credential from: {} (type={})", path, credentialType);
+            VaultResponse response = useStdEndpoint
+                    ? vaultTemplate.read(path)
+                    : vaultTemplate.write(path, Map.of("ttl", properties.getTtl()));
 
             if (response == null || response.getData() == null) {
-                throw new RuntimeException("[VaultGlue] Failed to read AWS credential from: " + path);
+                throw new RuntimeException("[VaultGlue] Failed to fetch AWS credential from: " + path);
             }
 
             Map<String, Object> data = response.getData();
-            currentCredential = new AwsCredential(
-                    (String) data.get("access_key"),
-                    (String) data.get("secret_key"),
-                    (String) data.get("security_token")
-            );
+            String accessKey = (String) data.get("access_key");
+            String secretKey = (String) data.get("secret_key");
+            if (accessKey == null || secretKey == null) {
+                throw new RuntimeException("[VaultGlue] AWS credential response missing access_key or secret_key");
+            }
+
+            currentCredential = new AwsCredential(accessKey, secretKey, (String) data.get("security_token"));
 
             log.info("[VaultGlue] AWS credential rotated: accessKey={}...",
-                    currentCredential.accessKey().substring(0, Math.min(8, currentCredential.accessKey().length())));
+                    accessKey.substring(0, Math.min(8, accessKey.length())));
         } catch (Exception e) {
             log.error("[VaultGlue] AWS credential rotation failed", e);
         }
     }
 
     private long parseTtlMs(String ttl) {
-        if (ttl.endsWith("h")) {
+        if (ttl.endsWith("d")) {
+            return Long.parseLong(ttl.replace("d", "")) * 86_400_000;
+        } else if (ttl.endsWith("h")) {
             return Long.parseLong(ttl.replace("h", "")) * 3_600_000;
         } else if (ttl.endsWith("m")) {
             return Long.parseLong(ttl.replace("m", "")) * 60_000;

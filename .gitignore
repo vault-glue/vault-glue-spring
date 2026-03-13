@@ -21,3 +21,13 @@ Thumbs.db
 
 # bkit
 .bkit/
+
+# Claude Code
+.claude/
+
+# Logs
+*.log
+
+# Java
+*.class
+hs_err_pid*

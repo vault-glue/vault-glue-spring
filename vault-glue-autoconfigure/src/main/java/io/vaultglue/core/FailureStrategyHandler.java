@@ -1,6 +1,7 @@
 package io.vaultglue.core;
 
 import io.vaultglue.core.event.CredentialRotationFailedEvent;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,7 +26,8 @@ public class FailureStrategyHandler {
     public void handle(String engine, String identifier, Exception cause,
                        Supplier<Void> retryAction) {
         switch (properties.getOnFailure()) {
-            case RETRY -> retryWithBackoff(engine, identifier, cause, retryAction);
+            case RETRY -> CompletableFuture.runAsync(
+                    () -> retryWithBackoff(engine, identifier, cause, retryAction));
             case RESTART -> shutdownApplication(engine, identifier, cause);
             case IGNORE -> logAndIgnore(engine, identifier, cause);
         }

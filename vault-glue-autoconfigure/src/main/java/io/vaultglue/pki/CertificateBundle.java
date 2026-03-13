@@ -2,12 +2,13 @@ package io.vaultglue.pki;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.List;
 
 public record CertificateBundle(
     String certificate,
     String privateKey,
     String issuingCa,
-    String caChain,
+    List<String> caChain,
     String serialNumber,
     Instant expiresAt
 ) {

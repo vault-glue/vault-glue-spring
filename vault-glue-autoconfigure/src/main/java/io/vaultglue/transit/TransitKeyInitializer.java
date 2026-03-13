@@ -35,9 +35,8 @@ public class TransitKeyInitializer implements ApplicationRunner {
             }
 
             try {
-                TransitKeyType type = TransitKeyType.fromValue(keyProps.getType());
-                transitOperations.createKey(name, type);
-                log.info("[VaultGlue] Transit key created: {} ({})", name, keyProps.getType());
+                transitOperations.createKey(name, keyProps.getType());
+                log.info("[VaultGlue] Transit key created: {} ({})", name, keyProps.getType().getValue());
             } catch (Exception e) {
                 log.error("[VaultGlue] Failed to create transit key: {}", name, e);
             }

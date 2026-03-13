@@ -5,6 +5,8 @@ import io.vaultglue.database.DataSourceRotator;
 import io.vaultglue.database.VaultGlueDatabaseProperties.DataSourceProperties;
 import io.vaultglue.database.VaultGlueDelegatingDataSource;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -19,7 +21,7 @@ public class StaticRefreshScheduler {
     private final StaticCredentialProvider credentialProvider;
     private final DataSourceRotator rotator;
     private final FailureStrategyHandler failureStrategyHandler;
-    private final ScheduledExecutorService scheduler;
+    private final List<ScheduledExecutorService> schedulers = new ArrayList<>();
     private final AtomicInteger executionCount = new AtomicInteger(0);
 
     public StaticRefreshScheduler(StaticCredentialProvider credentialProvider,
@@ -28,17 +30,19 @@ public class StaticRefreshScheduler {
         this.credentialProvider = credentialProvider;
         this.rotator = rotator;
         this.failureStrategyHandler = failureStrategyHandler;
-        this.scheduler = Executors.newSingleThreadScheduledExecutor(r -> {
-            Thread t = new Thread(r, "vault-glue-static-refresh");
-            t.setDaemon(true);
-            return t;
-        });
     }
 
     public void schedule(String name, VaultGlueDelegatingDataSource delegating,
                          DataSourceProperties props) {
         long interval = props.getRefreshInterval();
         log.info("[VaultGlue] Scheduling static credential refresh for '{}' every {}ms", name, interval);
+
+        ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor(r -> {
+            Thread t = new Thread(r, "vault-glue-static-refresh-" + name);
+            t.setDaemon(true);
+            return t;
+        });
+        schedulers.add(scheduler);
 
         scheduler.scheduleAtFixedRate(
                 () -> refresh(name, delegating, props),
@@ -72,14 +76,18 @@ public class StaticRefreshScheduler {
     }
 
     public void shutdown() {
-        scheduler.shutdown();
-        try {
-            if (!scheduler.awaitTermination(10, TimeUnit.SECONDS)) {
+        for (ScheduledExecutorService scheduler : schedulers) {
+            scheduler.shutdown();
+        }
+        for (ScheduledExecutorService scheduler : schedulers) {
+            try {
+                if (!scheduler.awaitTermination(10, TimeUnit.SECONDS)) {
+                    scheduler.shutdownNow();
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
                 scheduler.shutdownNow();
             }
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            scheduler.shutdownNow();
         }
     }
 }
