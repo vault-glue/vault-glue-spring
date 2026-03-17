@@ -8,7 +8,7 @@ val springBootVersion = "3.5.11"
 val springCloudVersion = "2025.0.1"
 
 allprojects {
-    group = "io.vaultglue"
+    group = "io.github.vault-glue"
     version = "0.1.0-SNAPSHOT"
 
     repositories {
