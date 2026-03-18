@@ -32,7 +32,7 @@ VaultGlue fills that gap. It builds on top of Spring Cloud Vault and turns every
 
 **Gradle (Kotlin DSL)**
 ```kotlin
-implementation("io.github.vault-glue:vault-glue-spring-boot-starter:0.1.0")
+implementation("io.github.vault-glue:vault-glue-spring-boot-starter:0.1.1")
 ```
 
 **Maven**
@@ -40,7 +40,7 @@ implementation("io.github.vault-glue:vault-glue-spring-boot-starter:0.1.0")
 <dependency>
     <groupId>io.github.vault-glue</groupId>
     <artifactId>vault-glue-spring-boot-starter</artifactId>
-    <version>0.1.0</version>
+    <version>0.1.1</version>
 </dependency>
 ```
 
