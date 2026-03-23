@@ -10,9 +10,10 @@ import org.springframework.aop.framework.AopProxyUtils;
 import org.springframework.aop.support.AopUtils;
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.config.BeanPostProcessor;
+import org.springframework.beans.factory.config.DestructionAwareBeanPostProcessor;
 import org.springframework.util.ReflectionUtils;
 
-public class VaultValueBeanPostProcessor implements BeanPostProcessor {
+public class VaultValueBeanPostProcessor implements BeanPostProcessor, DestructionAwareBeanPostProcessor {
 
     private static final Logger log = LoggerFactory.getLogger(VaultValueBeanPostProcessor.class);
 
@@ -43,6 +44,20 @@ public class VaultValueBeanPostProcessor implements BeanPostProcessor {
             }
         });
         return bean;
+    }
+
+    @Override
+    public void postProcessBeforeDestruction(Object bean, String beanName) throws BeansException {
+        Object target = getTargetObject(bean);
+        if (refreshableFields.remove(target) != null) {
+            log.debug("[VaultGlue] Removed destroyed bean '{}' from @VaultValue refresh tracking", beanName);
+        }
+    }
+
+    @Override
+    public boolean requiresDestruction(Object bean) {
+        Object target = getTargetObject(bean);
+        return refreshableFields.containsKey(target);
     }
 
     private Object getTargetObject(Object bean) {
