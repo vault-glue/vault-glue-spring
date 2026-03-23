@@ -126,7 +126,13 @@ subprojects {
     }
 
     signing {
-        useGpgCmd()
+        def signingKey = findProperty('signingKey')
+        def signingPassword = findProperty('signingPassword')
+        if (signingKey != null && signingPassword != null) {
+            useInMemoryPgpKeys(signingKey, signingPassword)
+        } else {
+            useGpgCmd()
+        }
         sign publishing.publications.mavenJava
     }
 
