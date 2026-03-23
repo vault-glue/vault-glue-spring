@@ -210,10 +210,10 @@ vault-glue:
 
 ### TODO
 - [x] GitHub org creation (vault-glue)
-- [ ] JitPack or Maven Central publishing setup
+- [x] Maven Central auto-publishing (GitHub Actions + tag trigger)
 - [x] Test code (unit/integration 23개 완료, E2E 미완)
 - [x] README.md + docs (엔진별 문서 7개)
-- [ ] GitHub Actions CI/CD
+- [x] GitHub Actions CI/CD
 - [x] Finalize group ID → `io.github.vault-glue`
 
 ## Conventions
