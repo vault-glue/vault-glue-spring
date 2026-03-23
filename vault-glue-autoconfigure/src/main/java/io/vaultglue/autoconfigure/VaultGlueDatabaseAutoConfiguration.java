@@ -170,6 +170,12 @@ public class VaultGlueDatabaseAutoConfiguration {
         // register() requests credentials from SecretLeaseContainer and waits for the initial credential
         listener.register(name, delegating, props);
 
+        // Placeholder pool is no longer needed — rotation replaced it with real credentials
+        if (!placeholder.isClosed()) {
+            placeholder.close();
+            log.debug("[VaultGlue] Closed placeholder DataSource for '{}'", name);
+        }
+
         return delegating;
     }
 

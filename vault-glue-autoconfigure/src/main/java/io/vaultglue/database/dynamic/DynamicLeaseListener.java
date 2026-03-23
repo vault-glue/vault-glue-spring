@@ -114,14 +114,14 @@ public class DynamicLeaseListener {
         try {
             rotator.rotate(delegating, props, username, password, leaseDuration);
             log.info("[VaultGlue] DataSource '{}' rotated via lease: user={}", name, username);
+            initialLatch.countDown();
         } catch (Exception e) {
             log.error("[VaultGlue] Failed to rotate DataSource '{}' on lease creation", name, e);
             failureStrategyHandler.handle("database", name, e, () -> {
                 rotator.rotate(delegating, props, username, password, leaseDuration);
+                initialLatch.countDown();
                 return null;
             });
-        } finally {
-            initialLatch.countDown();
         }
     }
 
