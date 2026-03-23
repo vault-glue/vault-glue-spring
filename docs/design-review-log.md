@@ -1,52 +1,104 @@
 # Design Review Log
 
-설계 검토 중 발견한 오류, 개선 사항, 결정 근거를 기록합니다.
+Records design review findings, improvements, and rationale for each version.
 
 ---
 
 ## 2026-03-23 — v0.2.0 Critical Bugfix Review
 
-전체 코드 리뷰를 통해 12개 critical/high 버그를 발견하고 수정했습니다.
+Full code review identified and fixed 12 critical/high-severity bugs across all engines.
 
 ### Transit Engine
 
-| 항목 | 변경 내용 | 근거 |
-|------|----------|------|
-| `VaultEncryptConverter.convertToEntityAttribute()` | 평문 fallback 제거 → `IllegalStateException` throw | `@Convert` 적용된 컬럼에 평문이 있으면 보안 사고. silent passthrough는 암호화되지 않은 데이터를 정상으로 간주하게 만듦 |
-| `VaultEncryptConverter.initialize()` | `synchronized (INIT_LOCK)` 추가, `getTransitOperations()`에서 single volatile read | JPA가 AutoConfiguration 완료 전에 converter를 호출할 수 있음. `applicationContext`와 `defaultKeyName` 두 필드가 원자적으로 보여야 함 |
-| `DefaultVaultTransitOperations.extractBatchResults()` | `item.get(key)` null 체크 추가 → `VaultTransitException` throw | Vault 응답에 expected key가 없으면 NPE 발생. 명확한 에러 메시지로 디버깅 용이하게 변경 |
+| Item | Change | Rationale |
+|------|--------|-----------|
+| `VaultEncryptConverter.convertToEntityAttribute()` | Removed plaintext fallback → throws `IllegalStateException` | Columns marked with `@Convert` should never contain plaintext. Silent passthrough treated unencrypted data as valid — security risk |
+| `VaultEncryptConverter.initialize()` | Added `synchronized (INIT_LOCK)`, single volatile read in `getTransitOperations()` | JPA can invoke the converter before AutoConfiguration completes. Both `applicationContext` and `defaultKeyName` must be visible atomically |
+| `DefaultVaultTransitOperations.extractBatchResults()` | Added null check on `item.get(key)` → throws `VaultTransitException` | Missing key in Vault response caused NPE. Clear error message aids debugging |
 
 ### Database Engine
 
-| 항목 | 변경 내용 | 근거 |
-|------|----------|------|
-| `DynamicLeaseListener.handleCreated()` | `initialLatch.countDown()`을 `finally`에서 제거, 성공 시에만 호출 | credential이 null이어도 latch가 풀려서 placeholder credential로 DataSource가 등록되는 버그. 실패 시 30초 timeout으로 빠르게 실패하도록 변경 |
-| `VaultGlueDatabaseAutoConfiguration.createDynamicDataSource()` | rotation 성공 후 placeholder `HikariDataSource.close()` 호출 | placeholder pool이 닫히지 않아 커넥션 풀 리소스 누수 발생 |
-| `StaticRefreshScheduler.schedule()` | `scheduleAtFixedRate` → `scheduleWithFixedDelay` | refresh가 interval보다 오래 걸리면 동일 DataSource에 대해 concurrent refresh 발생 → 커넥션 풀 corruption 가능. `scheduleWithFixedDelay`는 이전 실행 완료 후 다음 실행 시작 |
+| Item | Change | Rationale |
+|------|--------|-----------|
+| `DynamicLeaseListener.handleCreated()` | Moved `initialLatch.countDown()` out of `finally`, called only on success | Latch fired even with null credentials, causing DataSource registration with placeholder creds. Now times out after 30s on failure |
+| `VaultGlueDatabaseAutoConfiguration.createDynamicDataSource()` | Close placeholder `HikariDataSource` after successful rotation | Placeholder pool was never closed — connection pool resource leak |
+| `StaticRefreshScheduler.schedule()` | `scheduleAtFixedRate` → `scheduleWithFixedDelay` | If refresh took longer than interval, concurrent refreshes on the same DataSource could corrupt the connection pool |
 
 ### KV Engine
 
-| 항목 | 변경 내용 | 근거 |
-|------|----------|------|
-| `VaultValueBeanPostProcessor.refreshAll()` | `cache.clear()` 제거, swap-on-success 패턴으로 변경 | clear 후 Vault 장애 시 cache가 비어있게 됨. 새 cache에 먼저 fetch하고, 성공한 항목만 기존 cache에 merge. 실패한 path는 이전 값 유지 |
-| `VaultKvWatcher.start()` | `scheduleAtFixedRate` → `scheduleWithFixedDelay` | Vault 응답이 느릴 때 poll task가 큐에 쌓여 리소스 고갈. delay 기반으로 변경 |
+| Item | Change | Rationale |
+|------|--------|-----------|
+| `VaultValueBeanPostProcessor.refreshAll()` | Removed `cache.clear()`, replaced with swap-on-success pattern | Clearing cache before re-fetch meant Vault failure left empty cache. New approach: fetch into new cache first, merge only successful entries. Failed paths retain previous values |
+| `VaultKvWatcher.start()` | `scheduleAtFixedRate` → `scheduleWithFixedDelay` | Slow Vault responses caused poll tasks to queue up, exhausting resources |
 
 ### AWS Engine
 
-| 항목 | 변경 내용 | 근거 |
-|------|----------|------|
-| `VaultAwsCredentialProvider.getCredential()` | null 반환 → `IllegalStateException` throw | `start()` 호출 전에 `getCredential()` 호출 시 NPE. 명확한 에러로 변경 |
-| `VaultAwsCredentialProvider.rotate()` | STS 타입일 때 `security_token` 필수 검증 추가 | `sts`, `assumed_role`, `federation_token` 타입은 security_token 없으면 AWS SDK 호출 실패. Vault 응답 시점에 빠르게 실패하도록 변경 |
-| `VaultAwsCredentialProvider.parseTtlMs()` | `replace()` → `substring()`, 파싱 실패 시 `log.warn` 추가 | `"1h30m"` 같은 compound format에서 `replace("m","")` → `"1h30"` → `NumberFormatException` silent. substring으로 정확히 마지막 문자만 제거, 실패 시 경고 로그와 함께 기본값 사용 |
+| Item | Change | Rationale |
+|------|--------|-----------|
+| `VaultAwsCredentialProvider.getCredential()` | Returns null → throws `IllegalStateException` | Calling before `start()` caused NPE in downstream code |
+| `VaultAwsCredentialProvider.rotate()` | Added `security_token` validation for STS types | `sts`, `assumed_role`, `federation_token` require security_token. Missing token caused cryptic AWS SDK failures instead of early detection |
+| `VaultAwsCredentialProvider.parseTtlMs()` | `replace()` → `substring()`, added `log.warn` on parse failure | Compound formats like `"1h30m"` caused silent fallback to default. `substring` strips only the trailing unit char; failures now log a warning |
 
 ### TOTP Engine
 
-| 항목 | 변경 내용 | 근거 |
-|------|----------|------|
-| `DefaultVaultTotpOperations.validate()` | null response 시 `false` 반환 → `RuntimeException` throw | Vault 장애를 "코드 무효"로 처리하면 모든 OTP 인증이 거부됨. 보안상 Vault 에러와 인증 실패는 구분되어야 함 |
+| Item | Change | Rationale |
+|------|--------|-----------|
+| `DefaultVaultTotpOperations.validate()` | Null response returns `false` → throws `RuntimeException` | Vault outage was silently treated as "invalid code", denying all OTP validations. Vault errors and auth failures must be distinguishable |
 
-### 설계 판단
+### Design Decisions
 
-- **수정 범위:** targeted fix only — 리팩토링이나 새 기능 없이 실제 장애 유발 가능한 버그만 수정
-- **FailureStrategy 통합은 미포함:** KV/PKI/AWS/TOTP에 FailureStrategy가 일관되게 적용되지 않는 문제는 인지했으나, 0.2.0 범위에서는 제외. 별도 작업으로 진행 예정
-- **@VaultEncrypt 어노테이션 미사용 문제는 미포함:** 어노테이션의 key/context 필드가 실제로 읽히지 않는 문제는 API 변경이 필요하므로 0.3.0에서 처리 예정
+- **Scope:** Targeted fixes only — no refactoring or new features. Only bugs that could cause production failures.
+- **FailureStrategy unification deferred:** KV/PKI/AWS/TOTP do not consistently apply FailureStrategy. Acknowledged but excluded from 0.2.0 scope — planned as separate work.
+- **@VaultEncrypt annotation issue deferred:** The annotation's `key`/`context` fields are never read (only `VaultEncryptConverter` via JPA `@Convert` is used). Requires API design change — planned for 0.3.0.
+
+---
+
+## 2026-03-20 — v0.1.3 BOM Propagation Fix
+
+### Build / Publishing
+
+| Item | Change | Rationale |
+|------|--------|-----------|
+| Gradle Module Metadata | `GenerateModuleMetadata.enabled = false` | Consumer projects using `dependency-management-plugin` crashed with `archaius-core:0.3.3` binary store corruption. Gradle Module Metadata propagated Spring Cloud BOM constraints to consumers |
+| Published POM | Strip `<dependencyManagement>`, resolve explicit versions via `pom.withXml` | Libraries must not force BOM versions on consumers. `dependency-management-plugin` merges all BOMs and corrupted Gradle binary store with large dependency graphs |
+| `spring-cloud-starter-vault-config` | Replaced with `spring-cloud-vault-config` (core only) in autoconfigure | Starter pulled transitive dependencies that bloated consumer projects. Autoconfigure only needs the core library |
+
+### Design Decisions
+
+- **No BOM in published artifacts:** VaultGlue uses `platform()` internally for version management but strips all BOM references from published POM. Consumers must manage their own Spring Boot/Cloud versions.
+- **Always verify with consumer:** Before publishing new versions, test with `publishToMavenLocal` + consumer Gradle sync to catch `dependency-management-plugin` conflicts.
+
+---
+
+## 2026-03-23 — CI/CD Setup
+
+### Infrastructure
+
+| Item | Change | Rationale |
+|------|--------|-----------|
+| GitHub Actions CI | Added `.github/workflows/ci.yml` — build/test on push and PR to main/develop | Automated build verification for every change |
+| GitHub Actions Publish | Added `.github/workflows/publish.yml` — tag-based (`v*`) auto-publish to Maven Central | Manual publishing was error-prone. Tag push triggers build → sign → publish automatically |
+| GPG signing | Dual mode: `useInMemoryPgpKeys()` for CI, `useGpgCmd()` fallback for local | CI has no GPG agent. In-memory key loaded from GitHub Secrets; local dev uses existing GPG keyring |
+
+### Design Decisions
+
+- **Tag-triggered publishing:** Version in `build.gradle` must match tag name (validated in workflow). Prevents accidental mismatched releases.
+- **Secrets in GitHub Actions only:** Credentials never stored in code. `CENTRAL_USERNAME`, `CENTRAL_PASSWORD`, `GPG_SIGNING_KEY`, `GPG_SIGNING_PASSWORD` as repository secrets.
+
+---
+
+## 2026-03-17 — v0.1.0 Initial Architecture
+
+### Core Design
+
+| Item | Decision | Rationale |
+|------|----------|-----------|
+| Multi-module structure | `autoconfigure` + `starter` + `test` | Standard Spring Boot starter convention. Autoconfigure contains logic, starter bundles dependencies, test provides TestContainers support |
+| Configuration prefix | `vault-glue.*` | Avoids collision with `spring.cloud.vault.*` (Spring Cloud Vault). Clear namespace separation |
+| Vault connection | Delegates to `spring-cloud-vault` | No need to reinvent Vault auth/connection. VaultGlue focuses on secret engine operations only |
+| FailureStrategy | `restart` / `retry` / `ignore` | Operators need different responses to Vault failures. Restart kills the app (fail-fast), retry with backoff for transient issues, ignore for non-critical engines |
+| Event system | `ApplicationEventPublisher` with 5 event types | Loose coupling — users can react to credential rotation, lease events without depending on VaultGlue internals |
+| No Lombok | Manual constructors, getters, setters | Reduces magic, improves debuggability, avoids annotation processor issues in consumer projects |
+| Database multi-source | `VaultGlueDataSources` container with named access | Enterprise apps often need multiple databases (primary + replica). Named access via `vaultGlueDataSources.get("replica")` |
+| Static vs Dynamic DB credentials | Separate implementations (`StaticRefreshScheduler` vs `DynamicLeaseListener`) | Static: timer-based rotation from Vault `/creds/`. Dynamic: lease-based via `SecretLeaseContainer`. Fundamentally different lifecycle models |
+| Transit `@VaultEncrypt` | JPA `AttributeConverter` with `vg:{key}:vault:v1:...` format | Embeds key name in ciphertext so different fields can use different keys. Supports key rotation and legacy format migration |
