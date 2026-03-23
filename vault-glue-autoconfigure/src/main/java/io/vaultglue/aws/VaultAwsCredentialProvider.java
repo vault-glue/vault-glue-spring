@@ -90,15 +90,21 @@ public class VaultAwsCredentialProvider {
     }
 
     private long parseTtlMs(String ttl) {
-        if (ttl.endsWith("d")) {
-            return Long.parseLong(ttl.replace("d", "")) * 86_400_000;
-        } else if (ttl.endsWith("h")) {
-            return Long.parseLong(ttl.replace("h", "")) * 3_600_000;
-        } else if (ttl.endsWith("m")) {
-            return Long.parseLong(ttl.replace("m", "")) * 60_000;
-        } else if (ttl.endsWith("s")) {
-            return Long.parseLong(ttl.replace("s", "")) * 1_000;
+        try {
+            if (ttl.endsWith("d")) {
+                return Long.parseLong(ttl.substring(0, ttl.length() - 1)) * 86_400_000;
+            } else if (ttl.endsWith("h")) {
+                return Long.parseLong(ttl.substring(0, ttl.length() - 1)) * 3_600_000;
+            } else if (ttl.endsWith("m")) {
+                return Long.parseLong(ttl.substring(0, ttl.length() - 1)) * 60_000;
+            } else if (ttl.endsWith("s")) {
+                return Long.parseLong(ttl.substring(0, ttl.length() - 1)) * 1_000;
+            }
+        } catch (NumberFormatException e) {
+            log.warn("[VaultGlue] Failed to parse TTL '{}': {}. Using default 1h.", ttl, e.getMessage());
+            return 3_600_000;
         }
+        log.warn("[VaultGlue] Unrecognized TTL format '{}'. Supported: <number>[d|h|m|s]. Using default 1h.", ttl);
         return 3_600_000; // default 1h
     }
 
