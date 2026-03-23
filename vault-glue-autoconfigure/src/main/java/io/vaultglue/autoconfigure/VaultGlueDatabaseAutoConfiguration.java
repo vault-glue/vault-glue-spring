@@ -167,10 +167,19 @@ public class VaultGlueDatabaseAutoConfiguration {
 
         DynamicLeaseListener listener = new DynamicLeaseListener(
                 leaseContainer, rotator, eventPublisher, failureStrategyHandler);
-        // register() requests credentials from SecretLeaseContainer and waits for the initial credential
-        listener.register(name, delegating, props);
+        try {
+            // register() requests credentials from SecretLeaseContainer and waits for the initial credential
+            listener.register(name, delegating, props);
+        } catch (Exception e) {
+            // Close placeholder on registration failure to prevent connection pool leak
+            if (!placeholder.isClosed()) {
+                placeholder.close();
+                log.debug("[VaultGlue] Closed placeholder DataSource for '{}' after registration failure", name);
+            }
+            throw e;
+        }
 
-        // Placeholder pool is no longer needed — rotation replaced it with real credentials
+        // Close placeholder after successful rotation — real DataSource is now active
         if (!placeholder.isClosed()) {
             placeholder.close();
             log.debug("[VaultGlue] Closed placeholder DataSource for '{}'", name);
