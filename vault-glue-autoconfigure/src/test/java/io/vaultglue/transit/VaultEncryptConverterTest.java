@@ -26,11 +26,8 @@ class VaultEncryptConverterTest {
 
     @AfterEach
     void tearDown() {
-        // Restore static state so other tests are not affected
-        ApplicationContext ctx = Mockito.mock(ApplicationContext.class);
-        Mockito.when(ctx.getBean(VaultTransitOperations.class))
-                .thenReturn(Mockito.mock(VaultTransitOperations.class));
-        VaultEncryptConverter.initialize(ctx, "default-key");
+        // Re-initialize to prevent static state pollution across test classes
+        VaultEncryptConverter.initialize(null, null);
     }
 
     @Test
@@ -38,7 +35,7 @@ class VaultEncryptConverterTest {
         VaultEncryptConverter.initialize(null, null);
         VaultEncryptConverter uninitConverter = new VaultEncryptConverter();
 
-        org.junit.jupiter.api.Assertions.assertThrows(IllegalStateException.class,
+        assertThrows(IllegalStateException.class,
                 () -> uninitConverter.convertToDatabaseColumn("test"));
     }
 

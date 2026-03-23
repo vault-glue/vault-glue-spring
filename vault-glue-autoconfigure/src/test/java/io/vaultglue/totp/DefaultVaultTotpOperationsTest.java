@@ -56,10 +56,10 @@ class DefaultVaultTotpOperationsTest {
     @Test
     void generateCode_shouldThrowOnMissingCodeInResponse() {
         VaultResponse response = new VaultResponse();
-        response.setData(java.util.Map.of("unexpected", "value"));
+        response.setData(Map.of("unexpected", "value"));
         Mockito.when(vaultTemplate.read(Mockito.anyString())).thenReturn(response);
 
-        org.junit.jupiter.api.Assertions.assertThrows(RuntimeException.class,
+        assertThrows(RuntimeException.class,
                 () -> totpOps.generateCode("test-key"));
     }
 }

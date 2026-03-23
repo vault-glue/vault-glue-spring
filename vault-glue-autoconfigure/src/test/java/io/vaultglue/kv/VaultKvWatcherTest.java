@@ -2,7 +2,10 @@ package io.vaultglue.kv;
 
 import java.time.Duration;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import org.awaitility.Awaitility;
+import org.hamcrest.Matchers;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
@@ -14,6 +17,7 @@ class VaultKvWatcherTest {
     void pollChanges_shouldNotOverlapWhenVaultIsSlow() throws InterruptedException {
         AtomicInteger concurrentCount = new AtomicInteger(0);
         AtomicInteger maxConcurrent = new AtomicInteger(0);
+        AtomicInteger callCount = new AtomicInteger(0);
 
         VaultKvOperations kvOperations = Mockito.mock(VaultKvOperations.class);
         Mockito.when(kvOperations.get(Mockito.anyString())).thenAnswer(inv -> {
@@ -21,6 +25,7 @@ class VaultKvWatcherTest {
             maxConcurrent.updateAndGet(prev -> Math.max(prev, current));
             Thread.sleep(150);
             concurrentCount.decrementAndGet();
+            callCount.incrementAndGet();
             return Map.of("key", "value");
         });
 
@@ -35,7 +40,9 @@ class VaultKvWatcherTest {
         watcher.watch("app/config");
         watcher.start();
 
-        Thread.sleep(500);
+        Awaitility.await()
+                .atMost(5, TimeUnit.SECONDS)
+                .untilAtomic(callCount, Matchers.greaterThanOrEqualTo(2));
         watcher.shutdown();
 
         assertEquals(1, maxConcurrent.get(), "Should never have concurrent poll executions");
