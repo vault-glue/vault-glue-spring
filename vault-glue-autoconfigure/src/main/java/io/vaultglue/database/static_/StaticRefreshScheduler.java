@@ -44,7 +44,7 @@ public class StaticRefreshScheduler {
         });
         schedulers.add(scheduler);
 
-        scheduler.scheduleAtFixedRate(
+        scheduler.scheduleWithFixedDelay(
                 () -> refresh(name, delegating, props),
                 interval, interval, TimeUnit.MILLISECONDS
         );
