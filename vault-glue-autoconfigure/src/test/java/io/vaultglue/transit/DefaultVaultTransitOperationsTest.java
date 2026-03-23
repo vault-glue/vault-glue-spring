@@ -79,4 +79,23 @@ class DefaultVaultTransitOperationsTest {
         assertEquals("vault:v1:aaa", results.get(0));
         assertEquals("vault:v1:bbb", results.get(1));
     }
+
+    @Test
+    void encryptBatch_shouldThrowOnMissingResultKey() {
+        VaultResponse response = new VaultResponse();
+        response.setData(Map.of(
+                "batch_results", List.of(
+                        Map.of("unexpected_field", "value")
+                )
+        ));
+
+        Mockito.when(vaultTemplate.write(
+                Mockito.eq("transit/encrypt/test-key"),
+                Mockito.any()
+        )).thenReturn(response);
+
+        org.junit.jupiter.api.Assertions.assertThrows(
+                DefaultVaultTransitOperations.VaultTransitException.class,
+                () -> transitOps.encryptBatch("test-key", List.of("hello")));
+    }
 }
