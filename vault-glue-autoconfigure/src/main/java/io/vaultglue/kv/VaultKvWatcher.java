@@ -35,7 +35,7 @@ public class VaultKvWatcher {
         long intervalMs = properties.getWatch().getInterval().toMillis();
         log.info("[VaultGlue] KV watcher started (interval={}ms)", intervalMs);
 
-        scheduler.scheduleAtFixedRate(
+        scheduler.scheduleWithFixedDelay(
                 this::pollChanges,
                 intervalMs, intervalMs, TimeUnit.MILLISECONDS
         );

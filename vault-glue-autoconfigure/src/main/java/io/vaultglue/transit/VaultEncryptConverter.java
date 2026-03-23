@@ -33,23 +33,27 @@ public class VaultEncryptConverter implements AttributeConverter<String, String>
     private static final Pattern VG_PATTERN = Pattern.compile("^vg:([^:]+):(vault:v\\d+:.+)$");
     private static final Pattern VAULT_CIPHERTEXT_PATTERN = Pattern.compile("^vault:v\\d+:.+");
 
+    private static final Object INIT_LOCK = new Object();
     private static volatile ApplicationContext applicationContext;
     private static volatile String defaultKeyName;
 
     public static void initialize(ApplicationContext context, String keyName) {
-        applicationContext = context;
-        defaultKeyName = keyName;
+        synchronized (INIT_LOCK) {
+            applicationContext = context;
+            defaultKeyName = keyName;
+        }
     }
 
     @Override
     public String convertToDatabaseColumn(String attribute) {
         if (attribute == null) return null;
 
+        VaultTransitOperations transit = getTransitOperations();
+        String keyName = defaultKeyName; // single volatile read
         try {
-            VaultTransitOperations transit = getTransitOperations();
-            String ciphertext = transit.encrypt(defaultKeyName, attribute);
+            String ciphertext = transit.encrypt(keyName, attribute);
             // Include key name as prefix so the correct key can be identified during decryption
-            return VG_PREFIX + defaultKeyName + ":" + ciphertext;
+            return VG_PREFIX + keyName + ":" + ciphertext;
         } catch (Exception e) {
             log.error("[VaultGlue] Failed to encrypt field value", e);
             throw new RuntimeException("Vault transit encryption failed", e);
@@ -73,13 +77,15 @@ public class VaultEncryptConverter implements AttributeConverter<String, String>
             return decryptWith(defaultKeyName, dbData);
         }
 
-        // Unencrypted data (migration in progress)
-        return dbData;
+        // Unencrypted data should not exist in encrypted columns
+        throw new IllegalStateException(
+                "[VaultGlue] Unencrypted data found in column marked with VaultEncryptConverter. "
+                + "Data does not match any known ciphertext format.");
     }
 
     private String decryptWith(String keyName, String ciphertext) {
+        VaultTransitOperations transit = getTransitOperations();
         try {
-            VaultTransitOperations transit = getTransitOperations();
             return transit.decrypt(keyName, ciphertext);
         } catch (Exception e) {
             log.error("[VaultGlue] Failed to decrypt field value with key '{}'", keyName, e);
@@ -88,10 +94,11 @@ public class VaultEncryptConverter implements AttributeConverter<String, String>
     }
 
     private VaultTransitOperations getTransitOperations() {
-        if (applicationContext == null) {
+        ApplicationContext ctx = applicationContext; // single volatile read
+        if (ctx == null) {
             throw new IllegalStateException(
                     "VaultEncryptConverter not initialized. Ensure VaultGlueTransitAutoConfiguration is active.");
         }
-        return applicationContext.getBean(VaultTransitOperations.class);
+        return ctx.getBean(VaultTransitOperations.class);
     }
 }

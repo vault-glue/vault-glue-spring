@@ -1,0 +1,142 @@
+plugins {
+    id 'io.github.gradle-nexus.publish-plugin' version '2.0.0'
+}
+
+def springBootVersion = '3.5.11'
+def springCloudVersion = '2025.0.1'
+
+allprojects {
+    group = 'io.github.vault-glue'
+    version = '0.2.2'
+
+    repositories {
+        mavenCentral()
+    }
+}
+
+nexusPublishing {
+    repositories {
+        sonatype {
+            nexusUrl = uri('https://ossrh-staging-api.central.sonatype.com/service/local/')
+            snapshotRepositoryUrl = uri('https://central.sonatype.com/repository/maven-snapshots/')
+            username = providers.gradleProperty('centralUsername')
+            password = providers.gradleProperty('centralPassword')
+        }
+    }
+}
+
+subprojects {
+    apply plugin: 'java'
+    apply plugin: 'java-library'
+    apply plugin: 'maven-publish'
+    apply plugin: 'signing'
+
+    java {
+        sourceCompatibility = JavaVersion.VERSION_21
+        targetCompatibility = JavaVersion.VERSION_21
+        withJavadocJar()
+        withSourcesJar()
+    }
+
+    dependencies {
+        implementation platform("org.springframework.boot:spring-boot-dependencies:$springBootVersion")
+        implementation platform("org.springframework.cloud:spring-cloud-dependencies:$springCloudVersion")
+        annotationProcessor platform("org.springframework.boot:spring-boot-dependencies:$springBootVersion")
+        annotationProcessor platform("org.springframework.cloud:spring-cloud-dependencies:$springCloudVersion")
+    }
+
+    tasks.withType(JavaCompile) {
+        options.encoding = 'UTF-8'
+        options.compilerArgs.addAll(['-parameters'])
+    }
+
+    tasks.withType(Javadoc) {
+        options.addStringOption('Xdoclint:none', '-quiet')
+    }
+
+    tasks.withType(Test) {
+        useJUnitPlatform()
+    }
+
+    // Suppress Gradle Module Metadata so BOM constraints
+    // from platform() don't propagate to consumers
+    tasks.withType(GenerateModuleMetadata) {
+        enabled = false
+    }
+
+    publishing {
+        publications {
+            mavenJava(MavenPublication) {
+                from components.java
+
+                // Remove BOM imports from published POM and resolve
+                // explicit versions so consumers don't inherit our BOMs
+                pom.withXml {
+                    def root = asNode()
+                    root.dependencyManagement.each { root.remove(it) }
+
+                    // Build a map of resolved versions from runtime classpath
+                    def resolvedVersions = [:]
+                    project.configurations.runtimeClasspath.resolvedConfiguration
+                        .resolvedArtifacts.each { artifact ->
+                            def id = artifact.moduleVersion.id
+                            resolvedVersions["${id.group}:${id.name}"] = id.version
+                        }
+
+                    // Fill in missing versions in <dependencies>
+                    root.dependencies.dependency.each { dep ->
+                        if (!dep.version || dep.version.text().isEmpty()) {
+                            def key = "${dep.groupId.text()}:${dep.artifactId.text()}"
+                            def resolved = resolvedVersions[key]
+                            if (resolved) {
+                                dep.appendNode('version', resolved)
+                            }
+                        }
+                    }
+                }
+
+                pom {
+                    name = project.name
+                    description = 'Spring Boot AutoConfiguration for HashiCorp Vault secret engines'
+                    url = 'https://github.com/vault-glue/vault-glue-spring'
+
+                    licenses {
+                        license {
+                            name = 'Apache License, Version 2.0'
+                            url = 'https://www.apache.org/licenses/LICENSE-2.0'
+                        }
+                    }
+
+                    developers {
+                        developer {
+                            id = 'no-wead'
+                            name = 'no-wead'
+                            email = 'nowead814@gmail.com'
+                        }
+                    }
+
+                    scm {
+                        connection = 'scm:git:git://github.com/vault-glue/vault-glue-spring.git'
+                        developerConnection = 'scm:git:ssh://github.com:vault-glue/vault-glue-spring.git'
+                        url = 'https://github.com/vault-glue/vault-glue-spring'
+                    }
+                }
+            }
+        }
+    }
+
+    signing {
+        def signingKey = findProperty('signingKey')
+        def signingPassword = findProperty('signingPassword')
+        if (signingKey != null && signingPassword != null) {
+            useInMemoryPgpKeys(signingKey, signingPassword)
+        } else {
+            useGpgCmd()
+        }
+        sign publishing.publications.mavenJava
+    }
+
+    tasks.withType(Sign) {
+        onlyIf { !version.toString().endsWith('-SNAPSHOT') }
+    }
+}

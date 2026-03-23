@@ -2,6 +2,7 @@ package io.vaultglue.kv;
 
 import java.lang.reflect.Field;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -9,9 +10,10 @@ import org.springframework.aop.framework.AopProxyUtils;
 import org.springframework.aop.support.AopUtils;
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.config.BeanPostProcessor;
+import org.springframework.beans.factory.config.DestructionAwareBeanPostProcessor;
 import org.springframework.util.ReflectionUtils;
 
-public class VaultValueBeanPostProcessor implements BeanPostProcessor {
+public class VaultValueBeanPostProcessor implements BeanPostProcessor, DestructionAwareBeanPostProcessor {
 
     private static final Logger log = LoggerFactory.getLogger(VaultValueBeanPostProcessor.class);
 
@@ -42,6 +44,20 @@ public class VaultValueBeanPostProcessor implements BeanPostProcessor {
             }
         });
         return bean;
+    }
+
+    @Override
+    public void postProcessBeforeDestruction(Object bean, String beanName) throws BeansException {
+        Object target = getTargetObject(bean);
+        if (refreshableFields.remove(target) != null) {
+            log.debug("[VaultGlue] Removed destroyed bean '{}' from @VaultValue refresh tracking", beanName);
+        }
+    }
+
+    @Override
+    public boolean requiresDestruction(Object bean) {
+        Object target = getTargetObject(bean);
+        return refreshableFields.containsKey(target);
     }
 
     private Object getTargetObject(Object bean) {
@@ -82,9 +98,38 @@ public class VaultValueBeanPostProcessor implements BeanPostProcessor {
     }
 
     public void refreshAll() {
-        cache.clear();
+        Map<String, Map<String, Object>> newCache = new ConcurrentHashMap<>();
         refreshableFields.forEach((bean, fields) ->
-                fields.forEach((field, annotation) -> injectValue(bean, field, annotation)));
+                fields.forEach((field, annotation) -> {
+                    String path = annotation.path();
+                    try {
+                        Map<String, Object> secrets = newCache.computeIfAbsent(path, kvOperations::get);
+                        Object value = secrets.get(annotation.key());
+
+                        if (value == null && !annotation.defaultValue().isEmpty()) {
+                            value = annotation.defaultValue();
+                        }
+
+                        if (value != null) {
+                            ReflectionUtils.makeAccessible(field);
+                            ReflectionUtils.setField(field, bean, convertValue(value, field.getType()));
+                            log.debug("[VaultGlue] Refreshed @VaultValue: {}.{} from {}/{}",
+                                    bean.getClass().getSimpleName(), field.getName(), path, annotation.key());
+                        }
+                    } catch (Exception e) {
+                        log.error("[VaultGlue] Failed to refresh @VaultValue: {}/{}, keeping previous value",
+                                path, annotation.key(), e);
+                    }
+                }));
+        // Replace cache entries for paths that were successfully fetched
+        for (Map.Entry<String, Map<String, Object>> entry : newCache.entrySet()) {
+            cache.put(entry.getKey(), entry.getValue());
+        }
+        // Remove cached entries for paths no longer being watched
+        Set<String> watchedPaths = ConcurrentHashMap.newKeySet();
+        refreshableFields.values().forEach(fields ->
+                fields.values().forEach(annotation -> watchedPaths.add(annotation.path())));
+        cache.keySet().removeIf(path -> !watchedPaths.contains(path));
     }
 
     private Object convertValue(Object value, Class<?> targetType) {

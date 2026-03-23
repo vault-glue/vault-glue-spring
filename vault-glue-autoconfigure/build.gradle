@@ -1,0 +1,31 @@
+dependencies {
+    // Core
+    implementation 'org.springframework.boot:spring-boot-autoconfigure'
+    implementation 'org.springframework.cloud:spring-cloud-vault-config'
+    annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
+
+    // Optional - engine-specific
+    compileOnly 'com.zaxxer:HikariCP'
+    compileOnly 'org.springframework.boot:spring-boot-starter-actuator'
+    compileOnly 'org.springframework.boot:spring-boot-starter-data-jpa'
+    compileOnly 'software.amazon.awssdk:auth:2.29.45'
+    compileOnly 'org.springframework:spring-jdbc'
+
+    // Logging
+    compileOnly 'org.slf4j:slf4j-api'
+
+    // Test
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.springframework.vault:spring-vault-core'
+    testImplementation 'org.testcontainers:vault:1.20.4'
+    testImplementation 'org.testcontainers:junit-jupiter'
+    testImplementation 'org.testcontainers:mysql'
+    testImplementation 'org.testcontainers:postgresql'
+    testImplementation 'com.mysql:mysql-connector-j'
+    testImplementation 'org.postgresql:postgresql'
+    testImplementation 'com.zaxxer:HikariCP'
+    testImplementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    testImplementation 'org.awaitility:awaitility'
+    testImplementation 'com.h2database:h2'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}

@@ -35,11 +35,24 @@ public class VaultAwsCredentialProvider {
         long renewalMs = (long) (ttlMs * 0.8);
         log.info("[VaultGlue] AWS credential rotation scheduled every {}ms", renewalMs);
 
-        scheduler.scheduleAtFixedRate(this::rotate, renewalMs, renewalMs, TimeUnit.MILLISECONDS);
+        scheduler.scheduleAtFixedRate(this::scheduledRotate, renewalMs, renewalMs, TimeUnit.MILLISECONDS);
+    }
+
+    private void scheduledRotate() {
+        try {
+            rotate();
+        } catch (Exception e) {
+            log.error("[VaultGlue] AWS credential rotation failed, will retry on next schedule", e);
+        }
     }
 
     public AwsCredential getCredential() {
-        return currentCredential;
+        AwsCredential cred = currentCredential;
+        if (cred == null) {
+            throw new IllegalStateException(
+                    "[VaultGlue] AWS credential not yet available. Ensure start() has been called.");
+        }
+        return cred;
     }
 
     private void rotate() {
@@ -66,25 +79,40 @@ public class VaultAwsCredentialProvider {
                 throw new RuntimeException("[VaultGlue] AWS credential response missing access_key or secret_key");
             }
 
-            currentCredential = new AwsCredential(accessKey, secretKey, (String) data.get("security_token"));
+            String securityToken = (String) data.get("security_token");
+            boolean isStsType = !"iam_user".equals(properties.getCredentialType());
+            if (isStsType && (securityToken == null || securityToken.isBlank())) {
+                throw new RuntimeException(
+                        "[VaultGlue] AWS STS credential response missing security_token for type: "
+                        + properties.getCredentialType());
+            }
+
+            currentCredential = new AwsCredential(accessKey, secretKey, securityToken);
 
             log.info("[VaultGlue] AWS credential rotated: accessKey={}...",
                     accessKey.substring(0, Math.min(8, accessKey.length())));
-        } catch (Exception e) {
+        } catch (RuntimeException e) {
             log.error("[VaultGlue] AWS credential rotation failed", e);
+            throw e;
         }
     }
 
     private long parseTtlMs(String ttl) {
-        if (ttl.endsWith("d")) {
-            return Long.parseLong(ttl.replace("d", "")) * 86_400_000;
-        } else if (ttl.endsWith("h")) {
-            return Long.parseLong(ttl.replace("h", "")) * 3_600_000;
-        } else if (ttl.endsWith("m")) {
-            return Long.parseLong(ttl.replace("m", "")) * 60_000;
-        } else if (ttl.endsWith("s")) {
-            return Long.parseLong(ttl.replace("s", "")) * 1_000;
+        try {
+            if (ttl.endsWith("d")) {
+                return Long.parseLong(ttl.substring(0, ttl.length() - 1)) * 86_400_000;
+            } else if (ttl.endsWith("h")) {
+                return Long.parseLong(ttl.substring(0, ttl.length() - 1)) * 3_600_000;
+            } else if (ttl.endsWith("m")) {
+                return Long.parseLong(ttl.substring(0, ttl.length() - 1)) * 60_000;
+            } else if (ttl.endsWith("s")) {
+                return Long.parseLong(ttl.substring(0, ttl.length() - 1)) * 1_000;
+            }
+        } catch (NumberFormatException e) {
+            log.warn("[VaultGlue] Failed to parse TTL '{}': {}. Using default 1h.", ttl, e.getMessage());
+            return 3_600_000;
         }
+        log.warn("[VaultGlue] Unrecognized TTL format '{}'. Supported: <number>[d|h|m|s]. Using default 1h.", ttl);
         return 3_600_000; // default 1h
     }
 

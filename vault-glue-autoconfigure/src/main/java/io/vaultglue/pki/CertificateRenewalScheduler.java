@@ -58,7 +58,7 @@ public class CertificateRenewalScheduler {
 
         scheduler.scheduleAtFixedRate(
                 this::checkAndRenew,
-                interval, interval, TimeUnit.MILLISECONDS
+                0, interval, TimeUnit.MILLISECONDS
         );
     }
 
@@ -98,15 +98,21 @@ public class CertificateRenewalScheduler {
     }
 
     private Duration parseTtl(String ttl) {
-        if (ttl.endsWith("d")) {
-            return Duration.ofDays(Long.parseLong(ttl.replace("d", "")));
-        } else if (ttl.endsWith("h")) {
-            return Duration.ofHours(Long.parseLong(ttl.replace("h", "")));
-        } else if (ttl.endsWith("m")) {
-            return Duration.ofMinutes(Long.parseLong(ttl.replace("m", "")));
-        } else if (ttl.endsWith("s")) {
-            return Duration.ofSeconds(Long.parseLong(ttl.replace("s", "")));
+        try {
+            if (ttl.endsWith("d")) {
+                return Duration.ofDays(Long.parseLong(ttl.substring(0, ttl.length() - 1)));
+            } else if (ttl.endsWith("h")) {
+                return Duration.ofHours(Long.parseLong(ttl.substring(0, ttl.length() - 1)));
+            } else if (ttl.endsWith("m")) {
+                return Duration.ofMinutes(Long.parseLong(ttl.substring(0, ttl.length() - 1)));
+            } else if (ttl.endsWith("s")) {
+                return Duration.ofSeconds(Long.parseLong(ttl.substring(0, ttl.length() - 1)));
+            }
+        } catch (NumberFormatException e) {
+            log.warn("[VaultGlue] Failed to parse PKI TTL '{}': {}. Using default 72h.", ttl, e.getMessage());
+            return Duration.ofHours(72);
         }
+        log.warn("[VaultGlue] Unrecognized PKI TTL format '{}'. Supported: <number>[d|h|m|s]. Using default 72h.", ttl);
         return Duration.ofHours(72);
     }
 

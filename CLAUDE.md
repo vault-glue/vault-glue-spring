@@ -34,29 +34,157 @@ vault-glue-spring/
 
 ## Configuration Example (Target UX)
 
+VaultGlue requires `spring-cloud-vault` for Vault connection. Vault URL/token settings
+are configured via Spring Cloud Vault, not VaultGlue:
+
+```yaml
+# ─── Vault Connection (spring-cloud-vault) ───
+spring:
+  cloud:
+    vault:
+      uri: http://localhost:8200
+      token: hvs.xxxxx              # or use AppRole, Kubernetes auth, etc.
+      authentication: TOKEN         # TOKEN | APPROLE | KUBERNETES | ...
+```
+
+### Global
+
+```yaml
+vault-glue:
+  on-failure: retry               # restart | retry | ignore
+  retry:
+    max-attempts: 3
+    delay: 5000                   # ms
+  actuator:
+    enabled: true                 # HealthIndicator on/off
+```
+
+### KV Engine
+
 ```yaml
 vault-glue:
   kv:
     enabled: true
-    backend: app
-    version: 2
+    backend: app                  # Vault mount path (default: secret)
+    version: 2                    # KV version 1 or 2
+    application-name: my-app
+    watch:
+      enabled: true
+      interval: 30s               # polling interval
+```
+
+### Database Engine
+
+**Case 1: Single static DataSource**
+```yaml
+vault-glue:
   database:
     sources:
       primary:
-        type: static          # static | dynamic
+        type: static
+        role: my-service-static-dev
+        backend: db
+        jdbc-url: jdbc:mysql://db:3306/mydb
+        driver-class-name: com.mysql.cj.jdbc.Driver
+        refresh-interval: 18000000  # 5h credential refresh cycle
+        hikari:
+          maximum-pool-size: 10
+          minimum-idle: 2
+```
+
+**Case 2: Single dynamic DataSource**
+```yaml
+vault-glue:
+  database:
+    sources:
+      primary:
+        type: dynamic               # lease-based auto rotation
+        role: my-service-dynamic-dev
+        backend: db
+        jdbc-url: jdbc:mysql://db:3306/mydb
+        driver-class-name: com.mysql.cj.jdbc.Driver
+```
+
+**Case 3: Multi-DataSource (static + dynamic)**
+```yaml
+vault-glue:
+  database:
+    sources:
+      primary:
+        primary: true               # registered as default DataSource bean
+        type: static
         role: my-service-static-dev
         backend: db
         jdbc-url: jdbc:mysql://db:3306/mydb
         driver-class-name: com.mysql.cj.jdbc.Driver
         refresh-interval: 18000000
+        hikari:
+          maximum-pool-size: 10
+          minimum-idle: 2
+          max-lifetime: 1800000
+          idle-timeout: 600000
+          connection-timeout: 30000
+          validation-timeout: 5000
+          leak-detection-threshold: 0
+      replica:
+        type: dynamic
+        role: my-service-dynamic-dev
+        backend: db
+        jdbc-url: jdbc:mysql://replica:3306/mydb
+        driver-class-name: com.mysql.cj.jdbc.Driver
+```
+
+### Transit Engine
+
+```yaml
+vault-glue:
   transit:
     enabled: true
     backend: transit
     keys:
       user-pii:
-        type: aes256-gcm96
+        type: aes256-gcm96          # encryption key
         auto-create: true
-  on-failure: retry           # restart | retry | ignore
+      signing-key:
+        type: ed25519               # signing key
+        auto-create: true
+```
+
+### PKI Engine
+
+```yaml
+vault-glue:
+  pki:
+    enabled: true
+    backend: pki
+    role: my-pki-role
+    common-name: app.example.com
+    ttl: 72h
+    auto-renew: true
+    configure-ssl: false            # auto-configure SSL context
+    check-interval: 3600000         # renewal check interval (ms)
+    renew-threshold-hours: 24       # renew when < 24h remaining
+```
+
+### TOTP Engine
+
+```yaml
+vault-glue:
+  totp:
+    enabled: true
+    backend: totp
+```
+
+### AWS Engine
+
+```yaml
+vault-glue:
+  aws:
+    enabled: true
+    backend: aws
+    role: my-aws-role
+    credential-type: sts
+    ttl: 1h
 ```
 
 ## Current Status
@@ -81,12 +209,12 @@ vault-glue:
 - [x] Build verified
 
 ### TODO
-- [ ] GitHub org creation + push (vault-glue org or vault-glue-dev)
-- [ ] JitPack or Maven Central publishing setup
-- [ ] Test code (TestContainers + Vault)
-- [ ] README.md
-- [ ] GitHub Actions CI/CD
-- [ ] Finalize group ID (io.github.vault-glue or io.vaultglue)
+- [x] GitHub org creation (vault-glue)
+- [x] Maven Central auto-publishing (GitHub Actions + tag trigger)
+- [x] Test code (unit/integration 23개 완료, E2E 미완)
+- [x] README.md + docs (엔진별 문서 7개)
+- [x] GitHub Actions CI/CD
+- [x] Finalize group ID → `io.github.vault-glue`
 
 ## Conventions
 
@@ -168,6 +296,11 @@ vault-glue:
 - All comments in English (open-source, Apache 2.0 license)
 - Javadoc: minimal, only for complex public APIs
 - Section dividers: `// ─── Section Name ───`
+
+## Design Review Log
+- Record all design review findings, improvements, and rationale in `docs/design-review-log.md`
+- When modifying design docs (`docs/02-design/`), always log what was changed and why
+- Format: date + item + change description + rationale
 
 ## Build
 

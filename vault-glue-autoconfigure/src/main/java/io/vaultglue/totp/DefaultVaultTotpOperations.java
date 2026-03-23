@@ -50,7 +50,11 @@ public class DefaultVaultTotpOperations implements VaultTotpOperations {
         if (response == null || response.getData() == null) {
             throw new RuntimeException("[VaultGlue] Failed to generate TOTP code for: " + name);
         }
-        return (String) response.getData().get("code");
+        String code = (String) response.getData().get("code");
+        if (code == null) {
+            throw new RuntimeException("[VaultGlue] TOTP code missing in Vault response for: " + name);
+        }
+        return code;
     }
 
     @Override
@@ -59,7 +63,9 @@ public class DefaultVaultTotpOperations implements VaultTotpOperations {
 
         VaultResponse response = vaultTemplate.write(path, Map.of("code", code));
         if (response == null || response.getData() == null) {
-            return false;
+            throw new RuntimeException(
+                    "[VaultGlue] Failed to validate TOTP code for: " + name
+                    + ". Vault returned empty response.");
         }
 
         Object valid = response.getData().get("valid");

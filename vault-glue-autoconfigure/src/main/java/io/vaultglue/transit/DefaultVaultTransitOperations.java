@@ -255,7 +255,11 @@ public class DefaultVaultTransitOperations implements VaultTransitOperations {
             if (item.containsKey("error")) {
                 throw new VaultTransitException("Batch item error: " + item.get("error"));
             }
-            results.add(item.get(key).toString());
+            Object value = item.get(key);
+            if (value == null) {
+                throw new VaultTransitException("Missing '" + key + "' in batch result item: " + item);
+            }
+            results.add(value.toString());
         }
         return results;
     }
