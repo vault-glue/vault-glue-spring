@@ -1,5 +1,6 @@
 package io.vaultglue.transit;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -21,6 +22,24 @@ class VaultEncryptConverterTest {
         Mockito.when(ctx.getBean(VaultTransitOperations.class)).thenReturn(transitOps);
         VaultEncryptConverter.initialize(ctx, "default-key");
         converter = new VaultEncryptConverter();
+    }
+
+    @AfterEach
+    void tearDown() {
+        // Restore static state so other tests are not affected
+        ApplicationContext ctx = Mockito.mock(ApplicationContext.class);
+        Mockito.when(ctx.getBean(VaultTransitOperations.class))
+                .thenReturn(Mockito.mock(VaultTransitOperations.class));
+        VaultEncryptConverter.initialize(ctx, "default-key");
+    }
+
+    @Test
+    void convertToDatabaseColumn_shouldThrowWhenNotInitialized() {
+        VaultEncryptConverter.initialize(null, null);
+        VaultEncryptConverter uninitConverter = new VaultEncryptConverter();
+
+        org.junit.jupiter.api.Assertions.assertThrows(IllegalStateException.class,
+                () -> uninitConverter.convertToDatabaseColumn("test"));
     }
 
     @Test
