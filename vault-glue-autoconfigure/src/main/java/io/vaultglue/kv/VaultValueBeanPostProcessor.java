@@ -82,9 +82,30 @@ public class VaultValueBeanPostProcessor implements BeanPostProcessor {
     }
 
     public void refreshAll() {
-        cache.clear();
+        Map<String, Map<String, Object>> newCache = new ConcurrentHashMap<>();
         refreshableFields.forEach((bean, fields) ->
-                fields.forEach((field, annotation) -> injectValue(bean, field, annotation)));
+                fields.forEach((field, annotation) -> {
+                    String path = annotation.path();
+                    try {
+                        Map<String, Object> secrets = newCache.computeIfAbsent(path, kvOperations::get);
+                        Object value = secrets.get(annotation.key());
+
+                        if (value == null && !annotation.defaultValue().isEmpty()) {
+                            value = annotation.defaultValue();
+                        }
+
+                        if (value != null) {
+                            ReflectionUtils.makeAccessible(field);
+                            ReflectionUtils.setField(field, bean, convertValue(value, field.getType()));
+                            log.debug("[VaultGlue] Refreshed @VaultValue: {}.{} from {}/{}",
+                                    bean.getClass().getSimpleName(), field.getName(), path, annotation.key());
+                        }
+                    } catch (Exception e) {
+                        log.error("[VaultGlue] Failed to refresh @VaultValue: {}/{}, keeping previous value",
+                                path, annotation.key(), e);
+                    }
+                }));
+        cache.putAll(newCache);
     }
 
     private Object convertValue(Object value, Class<?> targetType) {
