@@ -73,8 +73,10 @@ public class VaultEncryptConverter implements AttributeConverter<String, String>
             return decryptWith(defaultKeyName, dbData);
         }
 
-        // Unencrypted data (migration in progress)
-        return dbData;
+        // Unencrypted data should not exist in encrypted columns
+        throw new IllegalStateException(
+                "[VaultGlue] Unencrypted data found in column marked with VaultEncryptConverter. "
+                + "Data does not match any known ciphertext format.");
     }
 
     private String decryptWith(String keyName, String ciphertext) {
