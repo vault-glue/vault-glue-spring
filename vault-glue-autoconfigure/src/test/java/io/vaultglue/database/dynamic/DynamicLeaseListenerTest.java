@@ -5,8 +5,10 @@ import io.vaultglue.core.VaultGlueEventPublisher;
 import io.vaultglue.database.DataSourceRotator;
 import io.vaultglue.database.VaultGlueDatabaseProperties.DataSourceProperties;
 import io.vaultglue.database.VaultGlueDelegatingDataSource;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import org.mockito.Mockito;
 import org.springframework.vault.core.lease.SecretLeaseContainer;
 
@@ -30,7 +32,10 @@ class DynamicLeaseListenerTest {
     }
 
     @Test
+    @Timeout(value = 35, unit = TimeUnit.SECONDS)
     void register_shouldTimeoutWhenNoCredentialsArrive() {
+        // This test takes ~30s because DynamicLeaseListener has a hardcoded 30s latch timeout.
+        // The test verifies that register() throws when no credentials arrive.
         DataSourceProperties props = new DataSourceProperties();
         props.setBackend("db");
         props.setRole("test-role");

@@ -45,7 +45,11 @@ class FailureStrategyHandlerTest {
 
         Awaitility.await()
                 .atMost(5, TimeUnit.SECONDS)
-                .untilAsserted(() -> Mockito.verify(applicationContext, Mockito.never()).close());
+                .untilAsserted(() -> {
+                    org.junit.jupiter.api.Assertions.assertEquals(2, callCount.get(),
+                            "Supplier should have been called exactly twice (fail on 1st, succeed on 2nd)");
+                    Mockito.verify(applicationContext, Mockito.never()).close();
+                });
     }
 
     @Test
@@ -75,7 +79,9 @@ class FailureStrategyHandlerTest {
         properties.getRetry().setMaxAttempts(2);
         properties.getRetry().setDelay(50);
 
+        AtomicInteger exhaustCallCount = new AtomicInteger(0);
         Supplier<Void> alwaysFails = () -> {
+            exhaustCallCount.incrementAndGet();
             throw new RuntimeException("always fails");
         };
 
@@ -83,6 +89,10 @@ class FailureStrategyHandlerTest {
 
         Awaitility.await()
                 .atMost(10, TimeUnit.SECONDS)
-                .untilAsserted(() -> Mockito.verify(applicationContext, Mockito.never()).close());
+                .untilAsserted(() -> {
+                    org.junit.jupiter.api.Assertions.assertEquals(2, exhaustCallCount.get(),
+                            "Supplier should have been called exactly maxAttempts (2) times");
+                    Mockito.verify(applicationContext, Mockito.never()).close();
+                });
     }
 }
