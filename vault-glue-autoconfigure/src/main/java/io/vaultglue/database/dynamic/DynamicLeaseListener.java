@@ -68,6 +68,7 @@ public class DynamicLeaseListener {
             if (!path.equals(credPath)) return;
 
             handleError(name, exception);
+            initialLatch.countDown(); // Fail fast instead of waiting 30s
         });
 
         // SecretLeaseContainer handles credential creation and lease tracking
