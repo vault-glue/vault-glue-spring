@@ -71,37 +71,52 @@ public class VaultGlueDatabaseAutoConfiguration {
         Map<String, VaultGlueDelegatingDataSource> sources = new LinkedHashMap<>();
         SecretLeaseContainer leaseContainer = leaseContainerProvider.getIfAvailable();
 
-        databaseProperties.getSources().forEach((name, props) -> {
-            if (!props.isEnabled()) {
-                log.info("[VaultGlue] DataSource '{}' is disabled, skipping", name);
-                return;
-            }
+        try {
+            databaseProperties.getSources().forEach((name, props) -> {
+                if (!props.isEnabled()) {
+                    log.info("[VaultGlue] DataSource '{}' is disabled, skipping", name);
+                    return;
+                }
 
-            log.info("[VaultGlue] Initializing DataSource '{}' (type={})", name, props.getType());
+                log.info("[VaultGlue] Initializing DataSource '{}' (type={})", name, props.getType());
 
-            if (props.getType() == null) {
-                throw new IllegalArgumentException(
-                        "[VaultGlue] DataSource type is required for '" + name
-                                + "'. Supported: static, dynamic");
-            }
-            if (props.getRole() == null || props.getRole().isBlank()) {
-                throw new IllegalArgumentException(
-                        "[VaultGlue] DataSource role is required for '" + name + "'");
-            }
-            if (props.getJdbcUrl() == null || props.getJdbcUrl().isBlank()) {
-                throw new IllegalArgumentException(
-                        "[VaultGlue] DataSource jdbc-url is required for '" + name + "'");
-            }
+                if (props.getType() == null) {
+                    throw new IllegalArgumentException(
+                            "[VaultGlue] DataSource type is required for '" + name
+                                    + "'. Supported: static, dynamic");
+                }
+                if (props.getRole() == null || props.getRole().isBlank()) {
+                    throw new IllegalArgumentException(
+                            "[VaultGlue] DataSource role is required for '" + name + "'");
+                }
+                if (props.getJdbcUrl() == null || props.getJdbcUrl().isBlank()) {
+                    throw new IllegalArgumentException(
+                            "[VaultGlue] DataSource jdbc-url is required for '" + name + "'");
+                }
 
-            VaultGlueDelegatingDataSource ds = switch (props.getType()) {
-                case STATIC -> createStaticDataSource(name, props, credentialProvider, refreshScheduler);
-                case DYNAMIC -> createDynamicDataSource(name, props, vaultTemplate, leaseContainer,
-                        rotator, eventPublisher, failureStrategyHandler);
-            };
+                VaultGlueDelegatingDataSource ds = switch (props.getType()) {
+                    case STATIC -> createStaticDataSource(name, props, credentialProvider, refreshScheduler);
+                    case DYNAMIC -> createDynamicDataSource(name, props, vaultTemplate, leaseContainer,
+                            rotator, eventPublisher, failureStrategyHandler);
+                };
 
-            sources.put(name, ds);
-            log.info("[VaultGlue] DataSource '{}' initialized", name);
-        });
+                sources.put(name, ds);
+                log.info("[VaultGlue] DataSource '{}' initialized", name);
+            });
+        } catch (Exception e) {
+            log.error("[VaultGlue] DataSource initialization failed, cleaning up", e);
+            refreshScheduler.shutdown();
+            sources.values().forEach(ds -> {
+                try {
+                    if (ds.getDelegate() instanceof HikariDataSource hikari && !hikari.isClosed()) {
+                        hikari.close();
+                    }
+                } catch (Exception closeEx) {
+                    log.warn("[VaultGlue] Failed to close DataSource during cleanup", closeEx);
+                }
+            });
+            throw e;
+        }
 
         return new VaultGlueDataSources(sources);
     }
