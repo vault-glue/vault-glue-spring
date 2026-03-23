@@ -4,6 +4,29 @@ Records design review findings, improvements, and rationale for each version.
 
 ---
 
+## 2026-03-23 — v0.2.2 Third Review Pass
+
+Deep functional review of all engines identified 6 additional issues — behavioral bugs and resource management gaps.
+
+### Fixes
+
+| Item | Change | Rationale |
+|------|--------|-----------|
+| `FailureStrategyHandler.retryWithBackoff()` | Throws `RuntimeException` after retry exhaustion instead of calling `shutdownApplication()` | Users configuring `onFailure=RETRY` expect retry-then-fail, not retry-then-restart. Silent fallback to RESTART violated the semantic contract and caused unexpected application shutdowns |
+| `CertificateRenewalScheduler.parseTtl()` | `replace()` → `substring()`, added `log.warn` on parse failure | Same `replace()` bug as AWS `parseTtlMs()`. `"10dd".replace("d","")` strips all occurrences. Compound formats like `"1h30m"` caused silent 72h default |
+| `CertificateRenewalScheduler.start()` | Initial delay changed from `interval` to `0` | Short-TTL cert + long checkInterval meant first renewal check ran after cert already expired. Now checks immediately on scheduler start |
+| `VaultGlueDatabaseAutoConfiguration.vaultGlueDataSources()` | Added try-catch around DataSource init loop; on failure, shuts down schedulers and closes already-created pools | In multi-DataSource config, if the 2nd source fails init, the 1st source's static refresh scheduler kept running as a leaked background thread |
+| `DynamicLeaseListener` error listener | Added `initialLatch.countDown()` in error handler | Error before first credential event left `register()` blocking for full 30s timeout. Now fails fast on Vault errors |
+| `VaultValueBeanPostProcessor` | Implements `DestructionAwareBeanPostProcessor`, adds `postProcessBeforeDestruction()` and `requiresDestruction()` | `refreshableFields` held strong references to destroyed beans, preventing GC. Prototype-scoped beans would accumulate indefinitely. Now removed on bean destruction |
+
+### Design Decisions
+
+- **RETRY exhaustion behavior:** Throwing is the safest default — the caller (scheduler or init code) can decide whether to retry again, ignore, or escalate. RESTART should only happen when explicitly configured.
+- **PKI first check at t=0:** Combined with the existing initial cert issue in the constructor, this creates a double-check on startup (constructor issues, then scheduler immediately verifies). This is intentional — belt and suspenders for cert freshness.
+- **DestructionAwareBeanPostProcessor:** Chosen over `WeakReference` because Spring's destruction callback is more reliable than GC timing. `WeakReference` keys in a ConcurrentHashMap would require periodic cleanup, adding complexity.
+
+---
+
 ## 2026-03-23 — v0.2.0 Second Review Pass
 
 After the initial 12 bugfixes, a second deep functional review identified 5 additional issues introduced or missed by the first pass.
