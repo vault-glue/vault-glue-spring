@@ -39,7 +39,12 @@ public class VaultAwsCredentialProvider {
     }
 
     public AwsCredential getCredential() {
-        return currentCredential;
+        AwsCredential cred = currentCredential;
+        if (cred == null) {
+            throw new IllegalStateException(
+                    "[VaultGlue] AWS credential not yet available. Ensure start() has been called.");
+        }
+        return cred;
     }
 
     private void rotate() {
@@ -66,12 +71,21 @@ public class VaultAwsCredentialProvider {
                 throw new RuntimeException("[VaultGlue] AWS credential response missing access_key or secret_key");
             }
 
-            currentCredential = new AwsCredential(accessKey, secretKey, (String) data.get("security_token"));
+            String securityToken = (String) data.get("security_token");
+            boolean isStsType = !"iam_user".equals(properties.getCredentialType());
+            if (isStsType && (securityToken == null || securityToken.isBlank())) {
+                throw new RuntimeException(
+                        "[VaultGlue] AWS STS credential response missing security_token for type: "
+                        + properties.getCredentialType());
+            }
+
+            currentCredential = new AwsCredential(accessKey, secretKey, securityToken);
 
             log.info("[VaultGlue] AWS credential rotated: accessKey={}...",
                     accessKey.substring(0, Math.min(8, accessKey.length())));
-        } catch (Exception e) {
+        } catch (RuntimeException e) {
             log.error("[VaultGlue] AWS credential rotation failed", e);
+            throw e;
         }
     }
 
