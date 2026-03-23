@@ -2,6 +2,7 @@ package io.vaultglue.kv;
 
 import java.lang.reflect.Field;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -105,7 +106,15 @@ public class VaultValueBeanPostProcessor implements BeanPostProcessor {
                                 path, annotation.key(), e);
                     }
                 }));
-        cache.putAll(newCache);
+        // Replace cache entries for paths that were successfully fetched
+        for (Map.Entry<String, Map<String, Object>> entry : newCache.entrySet()) {
+            cache.put(entry.getKey(), entry.getValue());
+        }
+        // Remove cached entries for paths no longer being watched
+        Set<String> watchedPaths = ConcurrentHashMap.newKeySet();
+        refreshableFields.values().forEach(fields ->
+                fields.values().forEach(annotation -> watchedPaths.add(annotation.path())));
+        cache.keySet().removeIf(path -> !watchedPaths.contains(path));
     }
 
     private Object convertValue(Object value, Class<?> targetType) {
