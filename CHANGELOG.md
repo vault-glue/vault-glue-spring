@@ -7,8 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.2.0] - 2026-03-23
 
+### Breaking Changes
+- **`VaultEncryptConverter`** no longer silently passes through unencrypted data. If your database contains unencrypted values in columns marked with `@Convert(converter = VaultEncryptConverter.class)`, they will now throw `IllegalStateException` at read time. **Migration:** encrypt all existing plaintext values before upgrading, or handle the exception during a migration period.
+
+### Added
+- GitHub Actions CI workflow (build/test on push and PR to main/develop)
+- GitHub Actions publish workflow (tag-based auto-publish to Maven Central)
+- Dual GPG signing support (`useInMemoryPgpKeys` for CI, `useGpgCmd` for local)
+
 ### Fixed
-- **[Security]** `VaultEncryptConverter` no longer silently returns plaintext data — throws `IllegalStateException` instead
 - **[Security]** `VaultEncryptConverter` initialization is now thread-safe with synchronized lock
 - **[Database]** `DynamicLeaseListener` only counts down initialization latch on successful credential rotation
 - **[Database]** Placeholder `HikariDataSource` is now closed after dynamic credential rotation succeeds
@@ -21,22 +28,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **[AWS]** STS credential types now validate `security_token` presence
 - **[AWS]** `parseTtlMs()` logs warning on unrecognized TTL format instead of silently using default
 
-## [0.1.3] - 2026-03-20
-
-### Fixed
-- Suppress Gradle Module Metadata to prevent BOM constraint propagation to consumers
-- Strip `<dependencyManagement>` from published POM and resolve explicit versions
-- Replace `spring-cloud-starter-vault-config` with `spring-cloud-vault-config` (core only) in autoconfigure module
-
-### Added
-- GitHub Actions CI workflow (build/test on push and PR to main/develop)
-- GitHub Actions publish workflow (tag-based auto-publish to Maven Central)
-- Dual GPG signing support (`useInMemoryPgpKeys` for CI, `useGpgCmd` for local)
-
-## [0.1.2] - 2026-03-19
+## [0.1.3] - 2026-03-19
 
 ### Fixed
 - BOM propagation bug: consumer projects using `dependency-management-plugin` crashed with `archaius-core:0.3.3` binary store corruption
+- Suppress Gradle Module Metadata to prevent BOM constraint propagation to consumers
+- Strip `<dependencyManagement>` from published POM and resolve explicit versions
+- Replace `spring-cloud-starter-vault-config` with `spring-cloud-vault-config` (core only) in autoconfigure module
 
 ## [0.1.1] - 2026-03-18
 
@@ -44,7 +42,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - First successful Maven Central publish
 
 ### Known Issues
-- BOM constraints propagate to consumers (fixed in 0.1.2)
+- BOM constraints propagate to consumers (fixed in 0.1.3)
 
 ## [0.1.0] - 2026-03-17
 
