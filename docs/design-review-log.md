@@ -4,6 +4,28 @@ Records design review findings, improvements, and rationale for each version.
 
 ---
 
+## 2026-03-23 — v0.2.0 Second Review Pass
+
+After the initial 12 bugfixes, a second deep functional review identified 5 additional issues introduced or missed by the first pass.
+
+### Additional Fixes
+
+| Item | Change | Rationale |
+|------|--------|-----------|
+| `VaultAwsCredentialProvider.rotate()` | Added `scheduledRotate()` wrapper that catches exceptions; scheduler calls wrapper instead of `rotate()` directly | `ScheduledExecutorService` permanently stops future executions on uncaught exception. One failed rotation was killing all future credential refreshes. Initial `start()` call still fails fast. |
+| `VaultGlueDatabaseAutoConfiguration.createDynamicDataSource()` | Wrapped `listener.register()` in try-catch; close placeholder in both success and failure paths | If `register()` times out (30s), placeholder HikariDataSource was never closed — connection pool leak. Now closed in all code paths. |
+| `VaultEncryptConverter.convertToDatabaseColumn()` | Cache `defaultKeyName` volatile field into local variable before use | Field was read twice (encrypt call + prefix assembly). If reassigned between reads via concurrent `initialize()`, the prefix would not match the encryption key — causing decryption failure later. |
+| `DefaultVaultTotpOperations.generateCode()` | Added null check on "code" key from Vault response | `validate()` throws on empty response but `generateCode()` silently returned null. Interface declares non-null return but implementation could return null. Now consistent. |
+| `VaultValueBeanPostProcessor.refreshAll()` | Replace `cache.putAll()` with per-entry put + `removeIf` for unwatched paths | `putAll()` only added/updated entries, never removed. Deleted secrets stayed in cache forever. Now: successful fetches update cache, unwatched paths are evicted. Failed paths retain previous values. |
+
+### Design Decisions
+
+- **Scheduler exception safety pattern:** `scheduledRotate()` wrapping `rotate()` is the same pattern used by `CertificateRenewalScheduler`. All scheduled tasks must catch exceptions to prevent executor death.
+- **Placeholder close in both paths:** Using try-catch (not try-finally) because the success path and failure path need different log messages. `finally` would also close on success before returning, which is the same behavior but less readable.
+- **Cache eviction scope:** Only evicts paths no longer in `refreshableFields`. Paths that failed to fetch are NOT evicted — they keep their previous value until a successful fetch replaces them.
+
+---
+
 ## 2026-03-23 — v0.2.0 Critical Bugfix Review
 
 Full code review identified and fixed 12 critical/high-severity bugs across all engines.

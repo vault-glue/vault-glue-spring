@@ -27,6 +27,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **[AWS]** `getCredential()` throws `IllegalStateException` before `start()` instead of returning `null`
 - **[AWS]** STS credential types now validate `security_token` presence
 - **[AWS]** `parseTtlMs()` logs warning on unrecognized TTL format instead of silently using default
+- **[AWS]** Scheduled credential rotation now survives exceptions instead of permanently stopping the scheduler
+- **[Security]** `VaultEncryptConverter` caches `defaultKeyName` in local variable to prevent volatile double-read race
+- **[Database]** Placeholder `HikariDataSource` is now closed even when `register()` times out (prevents connection pool leak)
+- **[TOTP]** `generateCode()` throws on missing `code` key in Vault response instead of returning `null`
+- **[KV]** `refreshAll()` cache now removes entries for deleted secrets and unwatched paths
 
 ## [0.1.3] - 2026-03-19
 
