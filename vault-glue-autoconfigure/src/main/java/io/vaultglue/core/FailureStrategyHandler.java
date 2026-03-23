@@ -61,9 +61,9 @@ public class FailureStrategyHandler {
             }
         }
 
-        log.error("[VaultGlue] All {} retries exhausted for {}/{}. Falling back to RESTART.",
-                maxAttempts, engine, identifier);
-        shutdownApplication(engine, identifier, cause);
+        log.error("[VaultGlue] All {} retries exhausted for {}/{}.", maxAttempts, engine, identifier, cause);
+        throw new RuntimeException(
+                "[VaultGlue] All " + maxAttempts + " retries exhausted for " + engine + "/" + identifier, cause);
     }
 
     private void shutdownApplication(String engine, String identifier, Exception cause) {

@@ -11,10 +11,6 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.ConfigurableApplicationContext;
 import io.vaultglue.core.event.CredentialRotationFailedEvent;
 
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-
 class FailureStrategyHandlerTest {
 
     private VaultGlueProperties properties;
@@ -25,9 +21,9 @@ class FailureStrategyHandlerTest {
     @BeforeEach
     void setUp() {
         properties = new VaultGlueProperties();
-        ApplicationEventPublisher springPublisher = mock(ApplicationEventPublisher.class);
+        ApplicationEventPublisher springPublisher = Mockito.mock(ApplicationEventPublisher.class);
         eventPublisher = new VaultGlueEventPublisher(springPublisher);
-        applicationContext = mock(ConfigurableApplicationContext.class);
+        applicationContext = Mockito.mock(ConfigurableApplicationContext.class);
         handler = new FailureStrategyHandler(properties, eventPublisher, applicationContext);
     }
 
@@ -49,7 +45,7 @@ class FailureStrategyHandlerTest {
 
         Awaitility.await()
                 .atMost(5, TimeUnit.SECONDS)
-                .untilAsserted(() -> verify(applicationContext, never()).close());
+                .untilAsserted(() -> Mockito.verify(applicationContext, Mockito.never()).close());
     }
 
     @Test
@@ -60,7 +56,7 @@ class FailureStrategyHandlerTest {
 
         Awaitility.await()
                 .atMost(3, TimeUnit.SECONDS)
-                .untilAsserted(() -> verify(applicationContext, Mockito.times(1)).close());
+                .untilAsserted(() -> Mockito.verify(applicationContext, Mockito.times(1)).close());
     }
 
     @Test
@@ -70,11 +66,11 @@ class FailureStrategyHandlerTest {
         handler.handle("kv", "test-key", new RuntimeException("ignored error"), () -> null);
 
         Thread.sleep(200);
-        verify(applicationContext, never()).close();
+        Mockito.verify(applicationContext, Mockito.never()).close();
     }
 
     @Test
-    void retryExhausted_shouldFallbackToRestart() {
+    void retryExhausted_shouldThrowRuntimeException() {
         properties.setOnFailure(FailureStrategy.RETRY);
         properties.getRetry().setMaxAttempts(2);
         properties.getRetry().setDelay(50);
@@ -87,6 +83,6 @@ class FailureStrategyHandlerTest {
 
         Awaitility.await()
                 .atMost(10, TimeUnit.SECONDS)
-                .untilAsserted(() -> verify(applicationContext, Mockito.times(1)).close());
+                .untilAsserted(() -> Mockito.verify(applicationContext, Mockito.never()).close());
     }
 }
