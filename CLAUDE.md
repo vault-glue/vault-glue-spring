@@ -297,6 +297,11 @@ vault-glue:
 - Javadoc: minimal, only for complex public APIs
 - Section dividers: `// ─── Section Name ───`
 
+## Design Review Log
+- 설계 검토 중 발견한 오류, 개선 사항, 결정 근거는 `docs/design-review-log.md`에 기록할 것
+- 설계 문서(`docs/02-design/`) 변경 시 반드시 해당 로그에 무엇을/왜 변경했는지 함께 기록
+- 형식: 날짜 + 항목 + 변경 내용 + 근거
+
 ## Build
 
 ```bash
