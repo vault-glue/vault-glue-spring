@@ -35,7 +35,15 @@ public class VaultAwsCredentialProvider {
         long renewalMs = (long) (ttlMs * 0.8);
         log.info("[VaultGlue] AWS credential rotation scheduled every {}ms", renewalMs);
 
-        scheduler.scheduleAtFixedRate(this::rotate, renewalMs, renewalMs, TimeUnit.MILLISECONDS);
+        scheduler.scheduleAtFixedRate(this::scheduledRotate, renewalMs, renewalMs, TimeUnit.MILLISECONDS);
+    }
+
+    private void scheduledRotate() {
+        try {
+            rotate();
+        } catch (Exception e) {
+            log.error("[VaultGlue] AWS credential rotation failed, will retry on next schedule", e);
+        }
     }
 
     public AwsCredential getCredential() {
