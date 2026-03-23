@@ -49,10 +49,11 @@ public class VaultEncryptConverter implements AttributeConverter<String, String>
         if (attribute == null) return null;
 
         VaultTransitOperations transit = getTransitOperations();
+        String keyName = defaultKeyName; // single volatile read
         try {
-            String ciphertext = transit.encrypt(defaultKeyName, attribute);
+            String ciphertext = transit.encrypt(keyName, attribute);
             // Include key name as prefix so the correct key can be identified during decryption
-            return VG_PREFIX + defaultKeyName + ":" + ciphertext;
+            return VG_PREFIX + keyName + ":" + ciphertext;
         } catch (Exception e) {
             log.error("[VaultGlue] Failed to encrypt field value", e);
             throw new RuntimeException("Vault transit encryption failed", e);
