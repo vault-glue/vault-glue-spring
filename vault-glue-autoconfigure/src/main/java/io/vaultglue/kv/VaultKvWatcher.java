@@ -1,5 +1,6 @@
 package io.vaultglue.kv;
 
+import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
@@ -55,6 +56,9 @@ public class VaultKvWatcher {
                 String path = entry.getKey();
                 Map<String, Object> lastKnown = entry.getValue();
                 Map<String, Object> current = kvOperations.get(path);
+                if (current == null) {
+                    current = Collections.emptyMap();
+                }
 
                 if (!current.equals(lastKnown)) {
                     log.info("[VaultGlue] KV change detected: {}", path);

@@ -95,7 +95,7 @@ class DefaultVaultTransitOperationsTest {
         )).thenReturn(response);
 
         org.junit.jupiter.api.Assertions.assertThrows(
-                DefaultVaultTransitOperations.VaultTransitException.class,
+                VaultTransitException.class,
                 () -> transitOps.encryptBatch("test-key", List.of("hello")));
     }
 }

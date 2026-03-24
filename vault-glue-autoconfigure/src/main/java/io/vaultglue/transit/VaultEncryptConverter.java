@@ -36,11 +36,28 @@ public class VaultEncryptConverter implements AttributeConverter<String, String>
     private static final Object INIT_LOCK = new Object();
     private static volatile ApplicationContext applicationContext;
     private static volatile String defaultKeyName;
+    private static volatile boolean allowPlaintextRead = false;
 
     public static void initialize(ApplicationContext context, String keyName) {
         synchronized (INIT_LOCK) {
             applicationContext = context;
             defaultKeyName = keyName;
+        }
+    }
+
+    public static void initialize(ApplicationContext context, String keyName, boolean plaintextRead) {
+        synchronized (INIT_LOCK) {
+            applicationContext = context;
+            defaultKeyName = keyName;
+            allowPlaintextRead = plaintextRead;
+        }
+    }
+
+    public static void reset() {
+        synchronized (INIT_LOCK) {
+            applicationContext = null;
+            defaultKeyName = null;
+            allowPlaintextRead = false;
         }
     }
 
@@ -77,10 +94,17 @@ public class VaultEncryptConverter implements AttributeConverter<String, String>
             return decryptWith(defaultKeyName, dbData);
         }
 
-        // Unencrypted data should not exist in encrypted columns
+        // Unencrypted plaintext data — return as-is if migration mode is enabled
+        if (allowPlaintextRead) {
+            log.warn("[VaultGlue] Plaintext data found in encrypted column (allow-plaintext-read=true). "
+                    + "Data will be encrypted on next write.");
+            return dbData;
+        }
+
         throw new IllegalStateException(
                 "[VaultGlue] Unencrypted data found in column marked with VaultEncryptConverter. "
-                + "Data does not match any known ciphertext format.");
+                + "Data does not match any known ciphertext format. "
+                + "Set vault-glue.transit.allow-plaintext-read=true to support migration.");
     }
 
     private String decryptWith(String keyName, String ciphertext) {

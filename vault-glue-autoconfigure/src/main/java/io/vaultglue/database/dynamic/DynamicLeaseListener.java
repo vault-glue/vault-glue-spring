@@ -12,6 +12,7 @@ import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.vault.core.lease.SecretLeaseContainer;
@@ -49,13 +50,14 @@ public class DynamicLeaseListener {
         log.info("[VaultGlue] Registering dynamic lease listener for '{}' at path: {}", name, credPath);
 
         CountDownLatch initialLatch = new CountDownLatch(1);
+        AtomicReference<Exception> initialError = new AtomicReference<>();
 
         leaseContainer.addLeaseListener(event -> {
             String path = event.getSource().getPath();
             if (!path.equals(credPath)) return;
 
             if (event instanceof SecretLeaseCreatedEvent created) {
-                handleCreated(name, delegating, props, created, initialLatch);
+                handleCreated(name, delegating, props, created, initialLatch, initialError);
             } else if (event instanceof AfterSecretLeaseRenewedEvent renewed) {
                 handleRenewed(name, renewed);
             } else if (event instanceof SecretLeaseExpiredEvent expired) {
@@ -68,6 +70,7 @@ public class DynamicLeaseListener {
             if (!path.equals(credPath)) return;
 
             handleError(name, exception);
+            initialError.compareAndSet(null, exception);
             initialLatch.countDown(); // Fail fast instead of waiting 30s
         });
 
@@ -84,11 +87,19 @@ public class DynamicLeaseListener {
             Thread.currentThread().interrupt();
             throw new RuntimeException("[VaultGlue] Interrupted waiting for credential for '" + name + "'", e);
         }
+
+        // Check if the latch was released due to an error
+        Exception error = initialError.get();
+        if (error != null) {
+            throw new RuntimeException(
+                    "[VaultGlue] Failed to obtain initial dynamic credential for '" + name + "'", error);
+        }
     }
 
     private void handleCreated(String name, VaultGlueDelegatingDataSource delegating,
                                 DataSourceProperties props, SecretLeaseCreatedEvent event,
-                                CountDownLatch initialLatch) {
+                                CountDownLatch initialLatch,
+                                AtomicReference<Exception> initialError) {
         Duration leaseDuration = event.getLease() != null
                 ? event.getLease().getLeaseDuration() : Duration.ZERO;
         String leaseId = event.getLease() != null
@@ -101,6 +112,9 @@ public class DynamicLeaseListener {
         Map<String, Object> body = event.getSecrets();
         if (body == null) {
             log.error("[VaultGlue] No credential body in lease event for '{}'", name);
+            initialError.compareAndSet(null,
+                    new RuntimeException("[VaultGlue] No credential body in lease event for '" + name + "'"));
+            initialLatch.countDown();
             return;
         }
 
@@ -109,6 +123,9 @@ public class DynamicLeaseListener {
 
         if (username == null || password == null) {
             log.error("[VaultGlue] Missing username/password in lease event for '{}'", name);
+            initialError.compareAndSet(null,
+                    new RuntimeException("[VaultGlue] Missing username/password in lease event for '" + name + "'"));
+            initialLatch.countDown();
             return;
         }
 
@@ -118,9 +135,10 @@ public class DynamicLeaseListener {
             initialLatch.countDown();
         } catch (Exception e) {
             log.error("[VaultGlue] Failed to rotate DataSource '{}' on lease creation", name, e);
+            initialError.compareAndSet(null, e);
+            initialLatch.countDown();
             failureStrategyHandler.handle("database", name, e, () -> {
                 rotator.rotate(delegating, props, username, password, leaseDuration);
-                initialLatch.countDown();
                 return null;
             });
         }

@@ -30,8 +30,8 @@ public class TransitKeyInitializer implements ApplicationRunner {
                             name, info.type(), info.latestVersion());
                     return;
                 }
-            } catch (Exception ignored) {
-                // Key doesn't exist
+            } catch (Exception e) {
+                log.debug("[VaultGlue] Could not read transit key '{}': {}", name, e.getMessage());
             }
 
             try {

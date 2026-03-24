@@ -1,7 +1,6 @@
 package io.vaultglue.core;
 
 import io.vaultglue.core.event.CredentialRotationFailedEvent;
-import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,8 +25,7 @@ public class FailureStrategyHandler {
     public void handle(String engine, String identifier, Exception cause,
                        Supplier<Void> retryAction) {
         switch (properties.getOnFailure()) {
-            case RETRY -> CompletableFuture.runAsync(
-                    () -> retryWithBackoff(engine, identifier, cause, retryAction));
+            case RETRY -> retryWithBackoff(engine, identifier, cause, retryAction);
             case RESTART -> shutdownApplication(engine, identifier, cause);
             case IGNORE -> logAndIgnore(engine, identifier, cause);
         }
@@ -61,9 +59,9 @@ public class FailureStrategyHandler {
             }
         }
 
-        log.error("[VaultGlue] All {} retries exhausted for {}/{}.", maxAttempts, engine, identifier, cause);
-        throw new RuntimeException(
-                "[VaultGlue] All " + maxAttempts + " retries exhausted for " + engine + "/" + identifier, cause);
+        log.error("[VaultGlue] All {} retries exhausted for {}/{}. Escalating to shutdown.",
+                maxAttempts, engine, identifier, cause);
+        shutdownApplication(engine, identifier, cause);
     }
 
     private void shutdownApplication(String engine, String identifier, Exception cause) {

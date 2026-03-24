@@ -23,6 +23,7 @@ class VaultGlueDatabaseAutoConfigurationTest {
     @Test
     void withHikariAndVaultTemplate_noSources_shouldFailWithMessage() {
         contextRunner
+                .withPropertyValues("vault-glue.database.enabled=true")
                 .withBean(VaultTemplate.class, () -> Mockito.mock(VaultTemplate.class))
                 .run(context -> {
                     assertThat(context).hasFailed();

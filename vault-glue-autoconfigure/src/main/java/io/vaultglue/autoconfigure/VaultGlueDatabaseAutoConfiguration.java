@@ -4,6 +4,7 @@ import com.zaxxer.hikari.HikariDataSource;
 import io.vaultglue.core.FailureStrategyHandler;
 import io.vaultglue.core.VaultGlueEventPublisher;
 import io.vaultglue.database.DataSourceRotator;
+import io.vaultglue.database.GracefulShutdown;
 import io.vaultglue.database.HikariDataSourceFactory;
 import io.vaultglue.database.VaultGlueDatabaseProperties;
 import io.vaultglue.database.VaultGlueDatabaseProperties.DataSourceProperties;
@@ -22,14 +23,17 @@ import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.vault.core.VaultTemplate;
 import org.springframework.vault.core.lease.SecretLeaseContainer;
 
-@AutoConfiguration(after = VaultGlueCoreAutoConfiguration.class)
+@AutoConfiguration(after = VaultGlueCoreAutoConfiguration.class, before = DataSourceAutoConfiguration.class)
 @ConditionalOnClass(HikariDataSource.class)
 @ConditionalOnBean(VaultTemplate.class)
+@ConditionalOnProperty(prefix = "vault-glue.database", name = "enabled", havingValue = "true")
 @EnableConfigurationProperties(VaultGlueDatabaseProperties.class)
 public class VaultGlueDatabaseAutoConfiguration {
 
@@ -56,7 +60,7 @@ public class VaultGlueDatabaseAutoConfiguration {
         return new StaticRefreshScheduler(credentialProvider, rotator, failureStrategyHandler);
     }
 
-    @Bean
+    @Bean(destroyMethod = "close")
     @ConditionalOnMissingBean(name = "vaultGlueDataSources")
     public VaultGlueDataSources vaultGlueDataSources(
             VaultGlueDatabaseProperties databaseProperties,
@@ -70,6 +74,15 @@ public class VaultGlueDatabaseAutoConfiguration {
 
         Map<String, VaultGlueDelegatingDataSource> sources = new LinkedHashMap<>();
         SecretLeaseContainer leaseContainer = leaseContainerProvider.getIfAvailable();
+
+        // Validate at most one source is marked primary
+        long primaryCount = databaseProperties.getSources().values().stream()
+                .filter(DataSourceProperties::isPrimary)
+                .count();
+        if (primaryCount > 1) {
+            throw new IllegalArgumentException(
+                    "[VaultGlue] Multiple DataSources marked as primary. Only one is allowed.");
+        }
 
         try {
             databaseProperties.getSources().forEach((name, props) -> {
@@ -175,8 +188,7 @@ public class VaultGlueDatabaseAutoConfiguration {
         }
 
         // Start with a placeholder DataSource — replaced via rotation once SecretLeaseContainer issues credentials
-        HikariDataSource placeholder = HikariDataSourceFactory.create(
-                name, props, "placeholder", "placeholder");
+        HikariDataSource placeholder = HikariDataSourceFactory.createPlaceholder(name, props);
         VaultGlueDelegatingDataSource delegating =
                 new VaultGlueDelegatingDataSource(name, placeholder, "pending");
 
@@ -230,6 +242,12 @@ public class VaultGlueDatabaseAutoConfiguration {
 
         public Map<String, VaultGlueDelegatingDataSource> getAll() {
             return sources;
+        }
+
+        public void close() {
+            // Wait for any in-progress graceful shutdown threads (old pool cleanup)
+            GracefulShutdown.awaitAll(10);
+            sources.values().forEach(VaultGlueDelegatingDataSource::close);
         }
     }
 }

@@ -42,6 +42,8 @@ public class VaultGlueKvAutoConfiguration {
     public VaultKvWatcher vaultKvWatcher(VaultKvOperations kvOperations,
                                          VaultValueBeanPostProcessor beanPostProcessor,
                                          VaultGlueKvProperties properties) {
-        return new VaultKvWatcher(kvOperations, beanPostProcessor, properties);
+        VaultKvWatcher watcher = new VaultKvWatcher(kvOperations, beanPostProcessor, properties);
+        beanPostProcessor.setWatcher(watcher);
+        return watcher;
     }
 }

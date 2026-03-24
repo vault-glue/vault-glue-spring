@@ -33,7 +33,7 @@ class VaultAwsCredentialProviderTest {
     }
 
     @Test
-    void start_shouldValidateSecurityTokenForStsType() {
+    void start_shouldLogErrorAndContinueWhenSecurityTokenMissingForStsType() {
         properties.setCredentialType("sts");
 
         VaultResponse response = new VaultResponse();
@@ -47,6 +47,9 @@ class VaultAwsCredentialProviderTest {
 
         VaultAwsCredentialProvider provider = new VaultAwsCredentialProvider(vaultTemplate, properties);
 
-        assertThrows(RuntimeException.class, provider::start);
+        // start() no longer throws — it logs error and schedules retry
+        provider.start();
+        assertThrows(IllegalStateException.class, provider::getCredential);
+        provider.shutdown();
     }
 }

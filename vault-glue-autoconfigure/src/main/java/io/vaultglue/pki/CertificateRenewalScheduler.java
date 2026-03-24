@@ -1,6 +1,7 @@
 package io.vaultglue.pki;
 
 import io.vaultglue.core.VaultGlueEventPublisher;
+import io.vaultglue.core.VaultGlueTimeUtils;
 import io.vaultglue.core.event.CertificateRenewedEvent;
 import java.time.Duration;
 import java.util.concurrent.Executors;
@@ -47,7 +48,7 @@ public class CertificateRenewalScheduler {
         // Initial issue
         try {
             pkiOperations.issue(properties.getRole(), properties.getCommonName(),
-                    parseTtl(properties.getTtl()));
+                    VaultGlueTimeUtils.parseTtl(properties.getTtl(), Duration.ofHours(72)));
             log.info("[VaultGlue] Initial certificate issued");
         } catch (Exception e) {
             log.error("[VaultGlue] Failed to issue initial certificate", e);
@@ -56,9 +57,9 @@ public class CertificateRenewalScheduler {
         long interval = properties.getCheckInterval();
         log.info("[VaultGlue] PKI renewal scheduler started (check every {}ms)", interval);
 
-        scheduler.scheduleAtFixedRate(
+        scheduler.scheduleWithFixedDelay(
                 this::checkAndRenew,
-                0, interval, TimeUnit.MILLISECONDS
+                interval, interval, TimeUnit.MILLISECONDS
         );
     }
 
@@ -84,7 +85,7 @@ public class CertificateRenewalScheduler {
                 CertificateBundle renewed = pkiOperations.issue(
                         properties.getRole(),
                         properties.getCommonName(),
-                        parseTtl(properties.getTtl()));
+                        VaultGlueTimeUtils.parseTtl(properties.getTtl(), Duration.ofHours(72)));
 
                 eventPublisher.publish(new CertificateRenewedEvent(
                         this, "pki", properties.getCommonName(), renewed));
@@ -95,25 +96,6 @@ public class CertificateRenewalScheduler {
         } catch (Exception e) {
             log.error("[VaultGlue] Certificate renewal check failed", e);
         }
-    }
-
-    private Duration parseTtl(String ttl) {
-        try {
-            if (ttl.endsWith("d")) {
-                return Duration.ofDays(Long.parseLong(ttl.substring(0, ttl.length() - 1)));
-            } else if (ttl.endsWith("h")) {
-                return Duration.ofHours(Long.parseLong(ttl.substring(0, ttl.length() - 1)));
-            } else if (ttl.endsWith("m")) {
-                return Duration.ofMinutes(Long.parseLong(ttl.substring(0, ttl.length() - 1)));
-            } else if (ttl.endsWith("s")) {
-                return Duration.ofSeconds(Long.parseLong(ttl.substring(0, ttl.length() - 1)));
-            }
-        } catch (NumberFormatException e) {
-            log.warn("[VaultGlue] Failed to parse PKI TTL '{}': {}. Using default 72h.", ttl, e.getMessage());
-            return Duration.ofHours(72);
-        }
-        log.warn("[VaultGlue] Unrecognized PKI TTL format '{}'. Supported: <number>[d|h|m|s]. Using default 72h.", ttl);
-        return Duration.ofHours(72);
     }
 
     public void shutdown() {

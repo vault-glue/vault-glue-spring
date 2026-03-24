@@ -5,8 +5,10 @@ import io.vaultglue.database.DataSourceRotator;
 import io.vaultglue.database.VaultGlueDatabaseProperties.DataSourceProperties;
 import io.vaultglue.database.VaultGlueDelegatingDataSource;
 import java.time.Duration;
-import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -21,8 +23,8 @@ public class StaticRefreshScheduler {
     private final StaticCredentialProvider credentialProvider;
     private final DataSourceRotator rotator;
     private final FailureStrategyHandler failureStrategyHandler;
-    private final List<ScheduledExecutorService> schedulers = new ArrayList<>();
-    private final AtomicInteger executionCount = new AtomicInteger(0);
+    private final List<ScheduledExecutorService> schedulers = new CopyOnWriteArrayList<>();
+    private final Map<String, AtomicInteger> executionCounts = new ConcurrentHashMap<>();
 
     public StaticRefreshScheduler(StaticCredentialProvider credentialProvider,
                                    DataSourceRotator rotator,
@@ -52,7 +54,7 @@ public class StaticRefreshScheduler {
 
     private void refresh(String name, VaultGlueDelegatingDataSource delegating,
                          DataSourceProperties props) {
-        int count = executionCount.incrementAndGet();
+        int count = executionCounts.computeIfAbsent(name, k -> new AtomicInteger(0)).incrementAndGet();
         log.info("[VaultGlue] Static credential refresh #{} for '{}'", count, name);
 
         try {
