@@ -105,8 +105,8 @@ public class DynamicLeaseListener {
         String leaseId = event.getLease() != null
                 ? event.getLease().getLeaseId() : "N/A";
 
-        log.info("[VaultGlue] Lease created for '{}': leaseId={}, duration={}s",
-                name, leaseId, leaseDuration.getSeconds());
+        log.info("[VaultGlue] Lease created for '{}': duration={}s", name, leaseDuration.getSeconds());
+        log.debug("[VaultGlue] Lease details for '{}': leaseId={}", name, leaseId);
 
         // Extract credentials from SecretLeaseCreatedEvent.getBody()
         Map<String, Object> body = event.getSecrets();
@@ -131,7 +131,8 @@ public class DynamicLeaseListener {
 
         try {
             rotator.rotate(delegating, props, username, password, leaseDuration);
-            log.info("[VaultGlue] DataSource '{}' rotated via lease: user={}", name, username);
+            log.info("[VaultGlue] DataSource '{}' rotated via lease", name);
+            log.debug("[VaultGlue] DataSource '{}' lease credential: user={}", name, username);
             initialLatch.countDown();
         } catch (Exception e) {
             log.error("[VaultGlue] Failed to rotate DataSource '{}' on lease creation", name, e);
@@ -157,7 +158,8 @@ public class DynamicLeaseListener {
 
     private void handleExpired(String name, String credPath, SecretLeaseExpiredEvent event) {
         String leaseId = event.getLease() != null ? event.getLease().getLeaseId() : "N/A";
-        log.warn("[VaultGlue] Lease expired for '{}': leaseId={}", name, leaseId);
+        log.warn("[VaultGlue] Lease expired for '{}'", name);
+        log.debug("[VaultGlue] Expired lease details for '{}': leaseId={}", name, leaseId);
 
         eventPublisher.publish(new LeaseExpiredEvent(this, "database", name, leaseId));
 

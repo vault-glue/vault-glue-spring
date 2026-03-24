@@ -265,7 +265,8 @@ public class DefaultVaultTransitOperations implements VaultTransitOperations {
             }
             Object value = item.get(key);
             if (value == null) {
-                throw new VaultTransitException("Missing '" + key + "' in batch result item: " + item);
+                throw new VaultTransitException(
+                        "Missing '" + key + "' in batch result item at index " + results.size());
             }
             results.add(value.toString());
         }

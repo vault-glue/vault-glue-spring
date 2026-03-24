@@ -96,7 +96,7 @@ public class VaultAwsCredentialProvider {
             currentCredential = new AwsCredential(accessKey, secretKey, securityToken);
 
             log.info("[VaultGlue] AWS credential rotated: accessKey={}...",
-                    accessKey.substring(0, Math.min(8, accessKey.length())));
+                    accessKey.substring(0, Math.min(4, accessKey.length())));
         } catch (RuntimeException e) {
             log.error("[VaultGlue] AWS credential rotation failed", e);
             throw e;
@@ -118,8 +118,9 @@ public class VaultAwsCredentialProvider {
     public record AwsCredential(String accessKey, String secretKey, String securityToken) {
         @Override
         public String toString() {
-            return "AwsCredential[accessKey=" + accessKey
-                    + ", secretKey=***masked***, securityToken=***masked***]";
+            return "AwsCredential[accessKey="
+                    + accessKey.substring(0, Math.min(4, accessKey.length()))
+                    + "..., secretKey=***masked***, securityToken=***masked***]";
         }
     }
 }

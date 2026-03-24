@@ -44,7 +44,6 @@ public class VaultGlueHealthAutoConfiguration {
     private Map<String, Object> buildDatabaseHealth(VaultGlueDelegatingDataSource ds) {
         Map<String, Object> details = new LinkedHashMap<>();
         details.put("lastRotation", ds.getLastRotationTime());
-        details.put("currentUsername", ds.getCurrentUsername());
 
         try {
             if (ds.getDelegate() instanceof HikariDataSource hikari) {
