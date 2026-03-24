@@ -4,6 +4,73 @@ Records design review findings, improvements, and rationale for each version.
 
 ---
 
+## 2026-03-24 — v0.2.3 Comprehensive Code Review (42 issues)
+
+Full codebase audit across all engines, build config, and tests. Parallel review by 5 agents covering core, database, KV/Transit/PKI/TOTP/AWS, tests, and build configuration.
+
+### Critical Fixes (11)
+
+| Item | Change | Rationale |
+|------|--------|-----------|
+| `FailureStrategyHandler` | Removed `CompletableFuture.runAsync` — retry now runs synchronously; escalates to `shutdownApplication()` on exhaustion | Exception thrown inside `runAsync` was silently swallowed (nobody called `.get()`). Retry failures were invisible in production |
+| `DynamicLeaseListener` latch deadlock | Added `AtomicReference<Exception>` for error propagation; all error paths now call `countDown()` | Null credentials or null body caused `register()` to block 30s with misleading timeout error instead of real cause |
+| `DynamicLeaseListener` error check | `register()` now checks `initialError` after latch release and throws with real cause | Error listener counted down latch but caller proceeded to use broken DataSource backed by closed placeholder |
+| `StaticRefreshScheduler` thread safety | `ArrayList` → `CopyOnWriteArrayList` for `schedulers` list | `shutdown()` during context failure cleanup could overlap with `schedule()`, causing `ConcurrentModificationException` |
+| KV Watch path registration | `VaultValueBeanPostProcessor` now calls `watcher.watch(path)` for `@VaultValue(refresh=true)` fields | Watch mode was completely non-functional — `lastKnownValues` was always empty so changes were never detected |
+| `VaultAwsCredentialProvider.start()` | Wrapped initial `rotate()` in try-catch | Uncaught exception in `start()` crashed entire application context. PKI had this guard but AWS did not |
+| `VaultEncryptConverter` static state | Added `reset()` method; `VaultEncryptConverterInitializer` implements `DisposableBean` | Static `ApplicationContext` reference was never cleared — caused stale context errors in tests with multiple context refreshes |
+| Build: dependency scopes | `implementation` → `api` for core deps; `compileOnly` deps marked `<optional>true</optional>` in POM | Published POM had `runtime` scope for `spring-boot-autoconfigure` — consumers couldn't compile. Optional deps were invisible |
+| `VaultGlueDatabaseAutoConfiguration` | Added `@ConditionalOnProperty(prefix="vault-glue.database", name="enabled")` | Unlike all other engines, database activated implicitly with HikariCP on classpath — caused errors without configuration |
+| `CertificateRenewalScheduler` | `initialDelay` 0→interval; `scheduleAtFixedRate` → `scheduleWithFixedDelay` | Immediate delay=0 after initial issue caused duplicate Vault API call on every startup; `atFixedRate` could stack invocations |
+
+### Important Fixes (21)
+
+| Item | Change | Rationale |
+|------|--------|-----------|
+| `VaultGlueDelegatingDataSource` | Implements `Closeable`; `VaultGlueDataSources.close()` closes all pools | Active HikariPools were never closed on context shutdown — connection leak |
+| `HikariDataSourceFactory` | Added `createPlaceholder()` with `minimumIdle=0`, `initializationFailTimeout=-1` | Placeholder with bogus credentials triggered DB auth failure logs and potential account lockout |
+| `StaticRefreshScheduler` counter | Global `AtomicInteger` → per-source `ConcurrentHashMap<String, AtomicInteger>` | Log showed wrong count when multiple DataSources shared the global counter |
+| `DefaultVaultKvOperations.metadata()` | Returns empty `VaultKvMetadata` instead of `null` | Violated project convention "never return null" |
+| `VaultKvMetadata` record | Compact constructor wraps `customMetadata` with `Collections.unmodifiableMap()` | Mutable map in immutable record broke encapsulation |
+| `VaultTransitException` | Extracted from `DefaultVaultTransitOperations` inner class to top-level | Callers using `VaultTransitOperations` interface couldn't catch the exception without depending on implementation class |
+| `DefaultVaultTransitOperations.decrypt()` | Wrapped `Base64.getDecoder().decode()` in try-catch → `VaultTransitException` | `IllegalArgumentException` propagated without context — unclear error message |
+| `CertificateBundle.toString()` | Override to mask `privateKey` | Auto-generated `toString()` would expose private key in logs |
+| `AwsCredential.toString()` | Override to mask `secretKey` and `securityToken` | Same credential exposure risk as CertificateBundle |
+| `DbCredential.toString()` | Override to mask `password` | Same credential exposure risk |
+| `VaultGlueHealthAutoConfiguration` | Added `@ConditionalOnClass(HikariDataSource.class)` | Without HikariCP, `VaultGlueHealthIndicator` threw `NoClassDefFoundError` at runtime |
+| AWS SDK dependency | Removed `software.amazon.awssdk:auth:2.29.45` (dead dependency) | No source file referenced any AWS SDK class |
+| `GracefulShutdown` | Added `softEvictConnections()` before shutdown wait loop | Idle connections in old pool were not marked for eviction — threads getting connections during rotation window hit "Pool has been shutdown" |
+| `GracefulShutdown` thread tracking | `CopyOnWriteArrayList<Thread>` + `awaitAll()` method | Virtual threads were fire-and-forget — JVM shutdown before completion left old pools unclosed |
+| `VaultGlueHealthIndicator` | Refactored to `HealthContributor`-based design; DB is optional via `ObjectProvider` | Previously required `VaultGlueDataSources` — non-DB engines had no health reporting at all |
+| `VaultEncryptConverter` | Added `allowPlaintextRead` flag for migration support | Existing plaintext data in DB columns caused `IllegalStateException` during encryption adoption — no migration path |
+| `spring-cloud-vault-config` | Changed to `compileOnly` in autoconfigure; starter provides `spring-cloud-starter-vault-config` | Library was forcing specific version on consumers who already had their own version managed |
+| `VaultGlueDatabaseAutoConfiguration` | Added `@AutoConfigureBefore(DataSourceAutoConfiguration.class)` | Without ordering, Spring's built-in `DataSource` bean could win over VaultGlue's |
+| `VaultGlueDatabaseAutoConfiguration` | Added validation: at most one source can be `primary: true` | Multiple primary sources picked winner by iteration order — non-deterministic |
+| `VaultGlueTransitProperties` | Added `defaultKey` property | Previously relied on `LinkedHashMap` iteration order for first key — fragile implicit contract |
+| `VaultKvWatcher.pollChanges()` | Null guard on `kvOperations.get(path)` | Deleted Vault path returned null → `NullPointerException` aborted entire poll cycle |
+
+### Suggestion Fixes (10)
+
+| Item | Change | Rationale |
+|------|--------|-----------|
+| `VaultGlueTimeUtils` | New shared utility class for TTL parsing | `parseTtl`/`parseTtlMs` was duplicated between `CertificateRenewalScheduler` and `VaultAwsCredentialProvider` |
+| CLAUDE.md | "Kotlin DSL" → "Groovy DSL" | All build scripts are `.gradle` (Groovy), not `.gradle.kts` |
+| `TransitKeyInitializer` | `catch (Exception ignored)` → debug log | Network errors and permission errors were silently swallowed alongside expected "not found" |
+| `VaultGlueKvProperties` | Version setter validates 1 or 2 | Invalid values like 3 silently fell through to KV_2 |
+| `DefaultVaultKvOperations` | `java.util.Arrays` → import statement | Violated project convention "always use import statements" |
+| Testcontainers versions | Removed explicit `1.20.4` pinning — BOM-managed | Mixed explicit/BOM versions could cause classpath conflicts |
+| `VaultGlueTransitProperties` | Added `allowPlaintextRead` property | Supports gradual migration from plaintext to encrypted columns |
+
+### Design Decisions
+
+- **Synchronous retry:** Async retry via `CompletableFuture` was fundamentally broken (unobserved exceptions). Synchronous execution is simpler and the caller thread is already a background scheduler thread in all real call sites — no UI thread blocking concern.
+- **Retry exhaustion → shutdown:** When all retries fail, the system is in an unrecoverable state. Escalating to RESTART (context close) is safer than silently continuing with stale credentials.
+- **HealthIndicator contributor pattern:** `HealthContributor` functional interface allows future engines (PKI, Transit, AWS) to add their own health checks without modifying the indicator class.
+- **Plaintext read migration:** `allow-plaintext-read=true` returns unencrypted data as-is; the next JPA write re-encrypts it. This enables zero-downtime migration without a batch job.
+- **spring-cloud-vault as peer dependency:** Autoconfigure module compiles against it but doesn't force a version. The starter provides it for batteries-included experience. Advanced users can exclude the starter's transitive and bring their own version.
+
+---
+
 ## 2026-03-23 — v0.2.2 Third Review Pass
 
 Deep functional review of all engines identified 6 additional issues — behavioral bugs and resource management gaps.
