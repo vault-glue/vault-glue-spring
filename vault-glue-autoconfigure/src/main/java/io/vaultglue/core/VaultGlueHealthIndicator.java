@@ -1,13 +1,13 @@
 package io.vaultglue.core;
 
-import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import org.springframework.boot.actuate.health.Health;
 import org.springframework.boot.actuate.health.HealthIndicator;
 
 public class VaultGlueHealthIndicator implements HealthIndicator {
 
-    private final Map<String, HealthContributor> contributors = new LinkedHashMap<>();
+    private final Map<String, HealthContributor> contributors = new ConcurrentHashMap<>();
 
     public void addContributor(String name, HealthContributor contributor) {
         contributors.put(name, contributor);

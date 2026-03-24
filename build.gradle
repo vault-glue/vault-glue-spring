@@ -75,13 +75,14 @@ subprojects {
                     def root = asNode()
                     root.dependencyManagement.each { root.remove(it) }
 
-                    // Build a map of resolved versions from runtime classpath
+                    // Build a map of resolved versions from both compile and runtime classpaths
                     def resolvedVersions = [:]
-                    project.configurations.runtimeClasspath.resolvedConfiguration
-                        .resolvedArtifacts.each { artifact ->
+                    [project.configurations.compileClasspath, project.configurations.runtimeClasspath].each { cfg ->
+                        cfg.resolvedConfiguration.resolvedArtifacts.each { artifact ->
                             def id = artifact.moduleVersion.id
                             resolvedVersions["${id.group}:${id.name}"] = id.version
                         }
+                    }
 
                     // Fill in missing versions in <dependencies>
                     root.dependencies.dependency.each { dep ->

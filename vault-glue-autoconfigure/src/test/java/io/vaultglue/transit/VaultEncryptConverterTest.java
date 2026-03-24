@@ -27,12 +27,12 @@ class VaultEncryptConverterTest {
     @AfterEach
     void tearDown() {
         // Re-initialize to prevent static state pollution across test classes
-        VaultEncryptConverter.initialize(null, null);
+        VaultEncryptConverter.reset();
     }
 
     @Test
     void convertToDatabaseColumn_shouldThrowWhenNotInitialized() {
-        VaultEncryptConverter.initialize(null, null);
+        VaultEncryptConverter.reset();
         VaultEncryptConverter uninitConverter = new VaultEncryptConverter();
 
         assertThrows(IllegalStateException.class,

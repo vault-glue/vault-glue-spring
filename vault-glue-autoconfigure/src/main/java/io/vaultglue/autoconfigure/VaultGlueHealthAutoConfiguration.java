@@ -3,6 +3,7 @@ package io.vaultglue.autoconfigure;
 import com.zaxxer.hikari.HikariDataSource;
 import com.zaxxer.hikari.HikariPoolMXBean;
 import io.vaultglue.autoconfigure.VaultGlueDatabaseAutoConfiguration.VaultGlueDataSources;
+import io.vaultglue.core.VaultGlueEventPublisher;
 import io.vaultglue.core.VaultGlueHealthIndicator;
 import io.vaultglue.database.VaultGlueDelegatingDataSource;
 import java.util.LinkedHashMap;
@@ -10,6 +11,7 @@ import java.util.Map;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.actuate.health.HealthIndicator;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -17,6 +19,7 @@ import org.springframework.context.annotation.Bean;
 
 @AutoConfiguration(after = VaultGlueDatabaseAutoConfiguration.class)
 @ConditionalOnClass(HealthIndicator.class)
+@ConditionalOnBean(VaultGlueEventPublisher.class)
 @ConditionalOnProperty(prefix = "vault-glue.actuator", name = "enabled", havingValue = "true", matchIfMissing = true)
 public class VaultGlueHealthAutoConfiguration {
 

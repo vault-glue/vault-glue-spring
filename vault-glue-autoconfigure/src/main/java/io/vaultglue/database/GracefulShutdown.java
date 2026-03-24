@@ -22,7 +22,7 @@ public class GracefulShutdown {
     public static void execute(HikariDataSource dataSource, int maxWaitSeconds) {
         Thread thread = Thread.ofVirtual()
                 .name("vault-glue-cleanup-" + dataSource.getPoolName())
-                .start(() -> {
+                .unstarted(() -> {
                     try {
                         doShutdown(dataSource, maxWaitSeconds);
                     } finally {
@@ -30,6 +30,7 @@ public class GracefulShutdown {
                     }
                 });
         shutdownThreads.add(thread);
+        thread.start();
     }
 
     /**

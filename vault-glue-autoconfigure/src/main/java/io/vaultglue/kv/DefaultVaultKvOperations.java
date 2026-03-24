@@ -171,9 +171,9 @@ public class DefaultVaultKvOperations implements VaultKvOperations {
             try {
                 return Instant.parse(s);
             } catch (Exception e) {
-                return null;
+                return Instant.EPOCH;
             }
         }
-        return null;
+        return Instant.EPOCH;
     }
 }

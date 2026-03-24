@@ -15,6 +15,9 @@ public final class VaultGlueTimeUtils {
      * Falls back to the given default if parsing fails.
      */
     public static Duration parseTtl(String ttl, Duration defaultValue) {
+        if (ttl == null || ttl.isBlank()) {
+            return defaultValue;
+        }
         try {
             if (ttl.endsWith("d")) {
                 return Duration.ofDays(Long.parseLong(ttl.substring(0, ttl.length() - 1)));
