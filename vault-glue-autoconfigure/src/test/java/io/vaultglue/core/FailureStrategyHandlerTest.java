@@ -43,13 +43,9 @@ class FailureStrategyHandlerTest {
 
         handler.handle("kv", "test-key", new RuntimeException("initial"), retryAction);
 
-        Awaitility.await()
-                .atMost(5, TimeUnit.SECONDS)
-                .untilAsserted(() -> {
-                    org.junit.jupiter.api.Assertions.assertEquals(2, callCount.get(),
-                            "Supplier should have been called exactly twice (fail on 1st, succeed on 2nd)");
-                    Mockito.verify(applicationContext, Mockito.never()).close();
-                });
+        org.junit.jupiter.api.Assertions.assertEquals(2, callCount.get(),
+                "Supplier should have been called exactly twice (fail on 1st, succeed on 2nd)");
+        Mockito.verify(applicationContext, Mockito.never()).close();
     }
 
     @Test
@@ -74,7 +70,7 @@ class FailureStrategyHandlerTest {
     }
 
     @Test
-    void retryExhausted_shouldThrowRuntimeException() {
+    void retryExhausted_shouldEscalateToShutdown() {
         properties.setOnFailure(FailureStrategy.RETRY);
         properties.getRetry().setMaxAttempts(2);
         properties.getRetry().setDelay(50);
@@ -87,12 +83,8 @@ class FailureStrategyHandlerTest {
 
         handler.handle("db", "primary", new RuntimeException("initial"), alwaysFails);
 
-        Awaitility.await()
-                .atMost(10, TimeUnit.SECONDS)
-                .untilAsserted(() -> {
-                    org.junit.jupiter.api.Assertions.assertEquals(2, exhaustCallCount.get(),
-                            "Supplier should have been called exactly maxAttempts (2) times");
-                    Mockito.verify(applicationContext, Mockito.never()).close();
-                });
+        org.junit.jupiter.api.Assertions.assertEquals(2, exhaustCallCount.get(),
+                "Supplier should have been called exactly maxAttempts (2) times");
+        Mockito.verify(applicationContext, Mockito.times(1)).close();
     }
 }

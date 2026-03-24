@@ -1,5 +1,6 @@
 package io.vaultglue.aws;
 
+import io.vaultglue.core.VaultGlueTimeUtils;
 import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -29,9 +30,14 @@ public class VaultAwsCredentialProvider {
     }
 
     public void start() {
-        rotate();
+        try {
+            rotate();
+        } catch (Exception e) {
+            log.error("[VaultGlue] Failed to fetch initial AWS credential. "
+                    + "Scheduler will retry on next cycle.", e);
+        }
 
-        long ttlMs = parseTtlMs(properties.getTtl());
+        long ttlMs = VaultGlueTimeUtils.parseTtlMs(properties.getTtl(), 3_600_000);
         long renewalMs = (long) (ttlMs * 0.8);
         log.info("[VaultGlue] AWS credential rotation scheduled every {}ms", renewalMs);
 
@@ -90,30 +96,11 @@ public class VaultAwsCredentialProvider {
             currentCredential = new AwsCredential(accessKey, secretKey, securityToken);
 
             log.info("[VaultGlue] AWS credential rotated: accessKey={}...",
-                    accessKey.substring(0, Math.min(8, accessKey.length())));
+                    accessKey.substring(0, Math.min(4, accessKey.length())));
         } catch (RuntimeException e) {
             log.error("[VaultGlue] AWS credential rotation failed", e);
             throw e;
         }
-    }
-
-    private long parseTtlMs(String ttl) {
-        try {
-            if (ttl.endsWith("d")) {
-                return Long.parseLong(ttl.substring(0, ttl.length() - 1)) * 86_400_000;
-            } else if (ttl.endsWith("h")) {
-                return Long.parseLong(ttl.substring(0, ttl.length() - 1)) * 3_600_000;
-            } else if (ttl.endsWith("m")) {
-                return Long.parseLong(ttl.substring(0, ttl.length() - 1)) * 60_000;
-            } else if (ttl.endsWith("s")) {
-                return Long.parseLong(ttl.substring(0, ttl.length() - 1)) * 1_000;
-            }
-        } catch (NumberFormatException e) {
-            log.warn("[VaultGlue] Failed to parse TTL '{}': {}. Using default 1h.", ttl, e.getMessage());
-            return 3_600_000;
-        }
-        log.warn("[VaultGlue] Unrecognized TTL format '{}'. Supported: <number>[d|h|m|s]. Using default 1h.", ttl);
-        return 3_600_000; // default 1h
     }
 
     public void shutdown() {
@@ -128,5 +115,12 @@ public class VaultAwsCredentialProvider {
         }
     }
 
-    public record AwsCredential(String accessKey, String secretKey, String securityToken) {}
+    public record AwsCredential(String accessKey, String secretKey, String securityToken) {
+        @Override
+        public String toString() {
+            return "AwsCredential[accessKey="
+                    + accessKey.substring(0, Math.min(4, accessKey.length()))
+                    + "..., secretKey=***masked***, securityToken=***masked***]";
+        }
+    }
 }

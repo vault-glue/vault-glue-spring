@@ -1,14 +1,14 @@
 dependencies {
-    // Core
-    implementation 'org.springframework.boot:spring-boot-autoconfigure'
-    implementation 'org.springframework.cloud:spring-cloud-vault-config'
+    // Core — api scope so consumers get compile-time access
+    api 'org.springframework.boot:spring-boot-autoconfigure'
+    // spring-cloud-vault-config is a required peer dependency — consumers must provide it
+    compileOnly 'org.springframework.cloud:spring-cloud-vault-config'
     annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
 
-    // Optional - engine-specific
+    // Optional — engine-specific (compileOnly, marked optional in POM)
     compileOnly 'com.zaxxer:HikariCP'
     compileOnly 'org.springframework.boot:spring-boot-starter-actuator'
     compileOnly 'org.springframework.boot:spring-boot-starter-data-jpa'
-    compileOnly 'software.amazon.awssdk:auth:2.29.45'
     compileOnly 'org.springframework:spring-jdbc'
 
     // Logging
@@ -16,8 +16,9 @@ dependencies {
 
     // Test
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.springframework.cloud:spring-cloud-vault-config'
     testImplementation 'org.springframework.vault:spring-vault-core'
-    testImplementation 'org.testcontainers:vault:1.20.4'
+    testImplementation 'org.testcontainers:vault'
     testImplementation 'org.testcontainers:junit-jupiter'
     testImplementation 'org.testcontainers:mysql'
     testImplementation 'org.testcontainers:postgresql'

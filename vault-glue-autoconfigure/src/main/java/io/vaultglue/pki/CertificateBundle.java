@@ -19,4 +19,11 @@ public record CertificateBundle(
     public boolean isExpiringSoon(long thresholdHours) {
         return getRemainingHours() < thresholdHours;
     }
+
+    @Override
+    public String toString() {
+        return "CertificateBundle[serialNumber=" + serialNumber
+                + ", expiresAt=" + expiresAt
+                + ", privateKey=***masked***]";
+    }
 }

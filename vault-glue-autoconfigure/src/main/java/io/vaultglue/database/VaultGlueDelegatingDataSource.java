@@ -1,5 +1,7 @@
 package io.vaultglue.database;
 
+import com.zaxxer.hikari.HikariDataSource;
+import java.io.Closeable;
 import java.io.PrintWriter;
 import java.sql.Connection;
 import java.sql.SQLException;
@@ -7,7 +9,7 @@ import java.time.Instant;
 import java.util.logging.Logger;
 import javax.sql.DataSource;
 
-public class VaultGlueDelegatingDataSource implements DataSource {
+public class VaultGlueDelegatingDataSource implements DataSource, Closeable {
 
     private volatile DelegateHolder holder;
     private final String name;
@@ -85,5 +87,13 @@ public class VaultGlueDelegatingDataSource implements DataSource {
     @Override
     public boolean isWrapperFor(Class<?> iface) throws SQLException {
         return iface.isInstance(this) || holder.delegate().isWrapperFor(iface);
+    }
+
+    @Override
+    public void close() {
+        DataSource delegate = holder.delegate();
+        if (delegate instanceof HikariDataSource hikari && !hikari.isClosed()) {
+            hikari.close();
+        }
     }
 }

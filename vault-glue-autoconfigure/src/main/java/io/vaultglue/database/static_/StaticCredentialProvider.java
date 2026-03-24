@@ -35,11 +35,16 @@ public class StaticCredentialProvider {
                     "Invalid credential response from Vault path: " + path);
         }
 
-        log.info("[VaultGlue] Static credential retrieved: username={}", username);
+        log.debug("[VaultGlue] Static credential retrieved: username={}", username);
         return new DbCredential(username, password);
     }
 
-    public record DbCredential(String username, String password) {}
+    public record DbCredential(String username, String password) {
+        @Override
+        public String toString() {
+            return "DbCredential[username=" + username + ", password=***masked***]";
+        }
+    }
 
     public static class VaultGlueCredentialException extends RuntimeException {
         public VaultGlueCredentialException(String message) {

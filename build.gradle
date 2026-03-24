@@ -7,7 +7,7 @@ def springCloudVersion = '2025.0.1'
 
 allprojects {
     group = 'io.github.vault-glue'
-    version = '0.2.2'
+    version = '0.3.0'
 
     repositories {
         mavenCentral()
@@ -75,13 +75,14 @@ subprojects {
                     def root = asNode()
                     root.dependencyManagement.each { root.remove(it) }
 
-                    // Build a map of resolved versions from runtime classpath
+                    // Build a map of resolved versions from both compile and runtime classpaths
                     def resolvedVersions = [:]
-                    project.configurations.runtimeClasspath.resolvedConfiguration
-                        .resolvedArtifacts.each { artifact ->
+                    [project.configurations.compileClasspath, project.configurations.runtimeClasspath].each { cfg ->
+                        cfg.resolvedConfiguration.resolvedArtifacts.each { artifact ->
                             def id = artifact.moduleVersion.id
                             resolvedVersions["${id.group}:${id.name}"] = id.version
                         }
+                    }
 
                     // Fill in missing versions in <dependencies>
                     root.dependencies.dependency.each { dep ->
@@ -90,6 +91,25 @@ subprojects {
                             def resolved = resolvedVersions[key]
                             if (resolved) {
                                 dep.appendNode('version', resolved)
+                            }
+                        }
+                    }
+
+                    // Add compileOnly dependencies as optional in published POM
+                    def optionalDeps = project.configurations.findByName('compileOnly')
+                    if (optionalDeps) {
+                        def depsNode = root.dependencies[0] ?: root.appendNode('dependencies')
+                        optionalDeps.dependencies.each { optDep ->
+                            // Skip slf4j-api (provided by Spring Boot)
+                            if (optDep.name == 'slf4j-api') return
+                            def key = "${optDep.group}:${optDep.name}"
+                            def resolved = resolvedVersions[key]
+                            if (resolved) {
+                                def depNode = depsNode.appendNode('dependency')
+                                depNode.appendNode('groupId', optDep.group)
+                                depNode.appendNode('artifactId', optDep.name)
+                                depNode.appendNode('version', resolved)
+                                depNode.appendNode('optional', 'true')
                             }
                         }
                     }

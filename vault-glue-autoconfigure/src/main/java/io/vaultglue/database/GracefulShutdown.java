@@ -2,6 +2,8 @@ package io.vaultglue.database;
 
 import com.zaxxer.hikari.HikariDataSource;
 import com.zaxxer.hikari.HikariPoolMXBean;
+import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -9,6 +11,7 @@ public class GracefulShutdown {
 
     private static final Logger log = LoggerFactory.getLogger(GracefulShutdown.class);
     private static final int DEFAULT_MAX_WAIT_SECONDS = 300;
+    private static final List<Thread> shutdownThreads = new CopyOnWriteArrayList<>();
 
     private GracefulShutdown() {}
 
@@ -17,15 +20,48 @@ public class GracefulShutdown {
     }
 
     public static void execute(HikariDataSource dataSource, int maxWaitSeconds) {
-        Thread.ofVirtual()
+        Thread thread = Thread.ofVirtual()
                 .name("vault-glue-cleanup-" + dataSource.getPoolName())
-                .start(() -> doShutdown(dataSource, maxWaitSeconds));
+                .unstarted(() -> {
+                    try {
+                        doShutdown(dataSource, maxWaitSeconds);
+                    } finally {
+                        shutdownThreads.remove(Thread.currentThread());
+                    }
+                });
+        shutdownThreads.add(thread);
+        thread.start();
+    }
+
+    /**
+     * Waits for all in-progress graceful shutdown threads to complete.
+     * Called during application shutdown to ensure old pools are properly closed.
+     */
+    public static void awaitAll(int timeoutSeconds) {
+        for (Thread thread : shutdownThreads) {
+            try {
+                thread.join(timeoutSeconds * 1_000L);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                log.warn("[VaultGlue] Interrupted while waiting for graceful shutdown thread: {}",
+                        thread.getName());
+                break;
+            }
+        }
+        shutdownThreads.clear();
     }
 
     private static void doShutdown(HikariDataSource dataSource, int maxWaitSeconds) {
         String poolName = dataSource.getPoolName();
         try {
             log.info("[VaultGlue] Graceful shutdown started: {}", poolName);
+
+            // Mark all idle connections for eviction; active ones will be evicted on return
+            HikariPoolMXBean poolBean = dataSource.getHikariPoolMXBean();
+            if (poolBean != null) {
+                poolBean.softEvictConnections();
+                log.debug("[VaultGlue] Soft-evicted connections for: {}", poolName);
+            }
 
             int waited = 0;
             while (waited < maxWaitSeconds) {

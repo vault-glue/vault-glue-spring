@@ -2,6 +2,7 @@ package io.vaultglue.kv;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Instant;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -133,7 +134,7 @@ public class DefaultVaultKvOperations implements VaultKvOperations {
         String fullPath = properties.getBackend() + "/metadata/" + path;
         VaultResponse response = vaultTemplate.read(fullPath);
         if (response == null || response.getData() == null) {
-            return null;
+            return new VaultKvMetadata(0, 0, Instant.EPOCH, Instant.EPOCH, Collections.emptyMap());
         }
         Map<String, Object> data = response.getData();
         return new VaultKvMetadata(
@@ -156,7 +157,7 @@ public class DefaultVaultKvOperations implements VaultKvOperations {
     }
 
     private List<Integer> toIntList(int[] arr) {
-        return java.util.Arrays.stream(arr).boxed().toList();
+        return Arrays.stream(arr).boxed().toList();
     }
 
     private int toInt(Object value) {
@@ -170,9 +171,9 @@ public class DefaultVaultKvOperations implements VaultKvOperations {
             try {
                 return Instant.parse(s);
             } catch (Exception e) {
-                return null;
+                return Instant.EPOCH;
             }
         }
-        return null;
+        return Instant.EPOCH;
     }
 }

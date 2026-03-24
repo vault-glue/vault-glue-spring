@@ -37,7 +37,8 @@ public class DataSourceRotator {
                            String name, String newUsername, String newPassword, Duration leaseDuration) {
         String oldUsername = delegating.getCurrentUsername();
 
-        log.info("[VaultGlue] Rotating DataSource '{}': {} -> {}", name, oldUsername, newUsername);
+        log.info("[VaultGlue] Rotating DataSource '{}'", name);
+        log.debug("[VaultGlue] DataSource '{}' credential change: {} -> {}", name, oldUsername, newUsername);
 
         DataSource oldDelegate = delegating.getDelegate();
 

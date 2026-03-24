@@ -62,7 +62,11 @@ public class DefaultVaultTransitOperations implements VaultTransitOperations {
 
         VaultResponse response = vaultTemplate.write(transitPath("decrypt/" + keyName), body);
         String base64Plaintext = extractString(response, "plaintext");
-        return new String(Base64.getDecoder().decode(base64Plaintext), StandardCharsets.UTF_8);
+        try {
+            return new String(Base64.getDecoder().decode(base64Plaintext), StandardCharsets.UTF_8);
+        } catch (IllegalArgumentException e) {
+            throw new VaultTransitException("Invalid Base64 plaintext in transit decrypt response", e);
+        }
     }
 
     // ─── Batch ───────────────────────────────────────────────────
@@ -93,9 +97,13 @@ public class DefaultVaultTransitOperations implements VaultTransitOperations {
                 Map.of("batch_input", batchInput));
 
         List<String> base64Results = extractBatchResults(response, "plaintext");
-        return base64Results.stream()
-                .map(b64 -> new String(Base64.getDecoder().decode(b64), StandardCharsets.UTF_8))
-                .toList();
+        try {
+            return base64Results.stream()
+                    .map(b64 -> new String(Base64.getDecoder().decode(b64), StandardCharsets.UTF_8))
+                    .toList();
+        } catch (IllegalArgumentException e) {
+            throw new VaultTransitException("Invalid Base64 plaintext in transit batch decrypt response", e);
+        }
     }
 
     // ─── Rewrap ──────────────────────────────────────────────────
@@ -257,7 +265,8 @@ public class DefaultVaultTransitOperations implements VaultTransitOperations {
             }
             Object value = item.get(key);
             if (value == null) {
-                throw new VaultTransitException("Missing '" + key + "' in batch result item: " + item);
+                throw new VaultTransitException(
+                        "Missing '" + key + "' in batch result item at index " + results.size());
             }
             results.add(value.toString());
         }
@@ -276,9 +285,4 @@ public class DefaultVaultTransitOperations implements VaultTransitOperations {
         return false;
     }
 
-    public static class VaultTransitException extends RuntimeException {
-        public VaultTransitException(String message) {
-            super(message);
-        }
-    }
 }

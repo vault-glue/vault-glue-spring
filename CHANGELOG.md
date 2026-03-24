@@ -5,6 +5,58 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-03-24
+
+### Breaking Changes
+- **[Database]** `vault-glue.database.enabled: true` is now **required** to activate the database engine. Previously it activated implicitly when HikariCP was on the classpath.
+- **[Build]** `spring-cloud-vault-config` is now a `compileOnly` (peer) dependency in `vault-glue-autoconfigure`. The starter (`vault-glue-spring-boot-starter`) provides it transitively. If you depend on `-autoconfigure` directly, add `spring-cloud-vault-config` to your project.
+
+### Added
+- **[Transit]** `vault-glue.transit.default-key` property — explicitly set the default key for `VaultEncryptConverter` instead of relying on YAML key order
+- **[Transit]** `vault-glue.transit.allow-plaintext-read` property — enables gradual migration from plaintext to encrypted columns without `IllegalStateException`
+- **[Core]** `VaultGlueTimeUtils` shared TTL parser utility (replaces duplicated logic in PKI/AWS)
+- **[Core]** `VaultGlueHealthIndicator` now works without database engine — contributor-based design supports all engines
+- **[Transit]** `VaultTransitException` extracted to top-level class for catchability via interface
+- **[Database]** `VaultGlueDelegatingDataSource` implements `Closeable` — pools are properly closed on shutdown
+- **[Database]** `HikariDataSourceFactory.createPlaceholder()` — placeholder pools use `minimumIdle=0` to avoid bogus connection attempts
+- **[Database]** `GracefulShutdown.awaitAll()` — tracks and joins virtual shutdown threads during application shutdown
+
+### Fixed
+- **[Critical]** `FailureStrategyHandler` retry was async (`CompletableFuture.runAsync`) — exceptions silently swallowed. Now synchronous with shutdown escalation on exhaustion
+- **[Critical]** `DynamicLeaseListener` latch deadlock — null credentials blocked `register()` for 30s. Now uses `AtomicReference<Exception>` for immediate error propagation
+- **[Critical]** KV Watch mode non-functional — `@VaultValue(refresh=true)` paths were never registered with watcher. Now auto-registered via `VaultValueBeanPostProcessor.setWatcher()`
+- **[Critical]** `VaultAwsCredentialProvider.start()` crashed application on initial Vault failure. Now catches and logs, scheduler retries
+- **[Critical]** `VaultEncryptConverter` static state never cleared between Spring context refreshes. Added `reset()` + `DisposableBean`
+- **[Critical]** `CertificateRenewalScheduler` issued duplicate cert on startup (`initialDelay=0`). Changed to `scheduleWithFixedDelay` with `initialDelay=interval`
+- **[Critical]** Published POM had `runtime` scope for core dependencies. Changed to `api` scope; `compileOnly` deps now marked `<optional>true</optional>`
+- **[Database]** `StaticRefreshScheduler.schedulers` was plain `ArrayList` — `ConcurrentModificationException` risk. Changed to `CopyOnWriteArrayList`
+- **[Database]** `StaticRefreshScheduler` execution counter was global across all DataSources — now per-source
+- **[Database]** `GracefulShutdown` calls `softEvictConnections()` before shutdown to reduce rotation race window
+- **[Database]** Multiple DataSources marked `primary: true` now validated at startup
+- **[Database]** `@AutoConfigureBefore(DataSourceAutoConfiguration.class)` added to prevent bean ordering conflict
+- **[KV]** `VaultKvWatcher.pollChanges()` NPE when Vault path deleted — now returns empty map
+- **[KV]** `DefaultVaultKvOperations.metadata()` returned null — now returns empty `VaultKvMetadata`
+- **[KV]** `VaultKvMetadata.customMetadata` was mutable — now wrapped with `Collections.unmodifiableMap()`
+- **[KV]** `VaultGlueKvProperties.version` accepts only 1 or 2
+- **[KV]** `DefaultVaultKvOperations.parseInstant()` returned null — now returns `Instant.EPOCH`
+- **[Transit]** `Base64.decode()` exception in decrypt now wrapped in `VaultTransitException`
+- **[Transit]** `TransitKeyInitializer` swallowed all exceptions silently — now logs at DEBUG
+- **[PKI]** `parseTtl()` replaced with shared `VaultGlueTimeUtils.parseTtl()`
+- **[Build]** POM generation resolves versions from `compileClasspath` + `runtimeClasspath`
+- **[Build]** Testcontainers versions unified via BOM (removed explicit `1.20.4` pinning)
+- **[Health]** `VaultGlueHealthAutoConfiguration` now requires `@ConditionalOnBean(VaultGlueEventPublisher.class)`
+- **[Health]** `VaultGlueHealthAutoConfiguration` added `@ConditionalOnClass(HikariDataSource.class)` guard
+
+### Security
+- **[TOTP]** `TotpKey.toString()` now masks `barcode` and `url` (TOTP secret exposure risk)
+- **[AWS]** `AwsCredential.toString()` truncates `accessKey` to 4 chars, masks `secretKey`/`securityToken`
+- **[PKI]** `CertificateBundle.toString()` masks `privateKey`
+- **[Database]** `DbCredential.toString()` masks `password`
+- **[Database]** Username and leaseId logs demoted from INFO to DEBUG across all credential providers
+- **[Health]** `currentUsername` removed from `/actuator/health` response
+- **[Transit]** Batch error message no longer includes raw response item (could contain plaintext/ciphertext)
+- **[Build]** `compileOnly` dependencies marked `<optional>true</optional>` in published POM
+
 ## [0.2.2] - 2026-03-23
 
 ### Fixed

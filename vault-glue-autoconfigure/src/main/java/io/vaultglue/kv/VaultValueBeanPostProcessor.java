@@ -19,12 +19,17 @@ public class VaultValueBeanPostProcessor implements BeanPostProcessor, Destructi
 
     private final VaultKvOperations kvOperations;
     private final Map<String, Map<String, Object>> cache = new ConcurrentHashMap<>();
+    private volatile VaultKvWatcher watcher;
 
     // Tracks fields that need refresh for watch mode
     private final Map<Object, Map<Field, VaultValue>> refreshableFields = new ConcurrentHashMap<>();
 
     public VaultValueBeanPostProcessor(VaultKvOperations kvOperations) {
         this.kvOperations = kvOperations;
+    }
+
+    public void setWatcher(VaultKvWatcher watcher) {
+        this.watcher = watcher;
     }
 
     @Override
@@ -41,6 +46,10 @@ public class VaultValueBeanPostProcessor implements BeanPostProcessor, Destructi
                 refreshableFields
                         .computeIfAbsent(target, k -> new ConcurrentHashMap<>())
                         .put(field, annotation);
+                VaultKvWatcher w = watcher;
+                if (w != null) {
+                    w.watch(annotation.path());
+                }
             }
         });
         return bean;

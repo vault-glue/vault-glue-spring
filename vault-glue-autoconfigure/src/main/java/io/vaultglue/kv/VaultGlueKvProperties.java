@@ -17,7 +17,13 @@ public class VaultGlueKvProperties {
     public String getBackend() { return backend; }
     public void setBackend(String backend) { this.backend = backend; }
     public int getVersion() { return version; }
-    public void setVersion(int version) { this.version = version; }
+    public void setVersion(int version) {
+        if (version != 1 && version != 2) {
+            throw new IllegalArgumentException(
+                    "[VaultGlue] KV version must be 1 or 2, got: " + version);
+        }
+        this.version = version;
+    }
     public String getApplicationName() { return applicationName; }
     public void setApplicationName(String applicationName) { this.applicationName = applicationName; }
     public WatchProperties getWatch() { return watch; }

@@ -29,7 +29,7 @@ vault-glue-spring/
 - Java 21+
 - Spring Boot 3.5.11
 - Spring Cloud 2025.0.1
-- Gradle 8.14.3 (Kotlin DSL, native platform() BOM)
+- Gradle 8.14.3 (Groovy DSL, native platform() BOM)
 - HikariCP (DB connection pool)
 
 ## Configuration Example (Target UX)
@@ -221,6 +221,7 @@ vault-glue:
 ### Imports
 - Explicit imports only (no wildcard `*`)
 - Always use import statements — never reference types by fully qualified path
+- Never use absolute filesystem paths (e.g. `C:/Users/...`) in import statements or code — always use package-qualified class names
 - Group order: `java.*` → `jakarta.*` → `org.springframework.*` → `io.vaultglue.*`
 - No static imports
 
