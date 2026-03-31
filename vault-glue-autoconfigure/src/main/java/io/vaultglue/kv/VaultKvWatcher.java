@@ -8,6 +8,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import io.vaultglue.core.FailureStrategyHandler;
 
 public class VaultKvWatcher {
 
@@ -18,13 +19,16 @@ public class VaultKvWatcher {
     private final VaultGlueKvProperties properties;
     private final ScheduledExecutorService scheduler;
     private final Map<String, Map<String, Object>> lastKnownValues = new ConcurrentHashMap<>();
+    private final FailureStrategyHandler failureStrategyHandler;
 
     public VaultKvWatcher(VaultKvOperations kvOperations,
                           VaultValueBeanPostProcessor beanPostProcessor,
-                          VaultGlueKvProperties properties) {
+                          VaultGlueKvProperties properties,
+                          FailureStrategyHandler failureStrategyHandler) {
         this.kvOperations = kvOperations;
         this.beanPostProcessor = beanPostProcessor;
         this.properties = properties;
+        this.failureStrategyHandler = failureStrategyHandler;
         this.scheduler = Executors.newSingleThreadScheduledExecutor(r -> {
             Thread t = new Thread(r, "vault-glue-kv-watcher");
             t.setDaemon(true);
@@ -72,6 +76,10 @@ public class VaultKvWatcher {
             }
         } catch (Exception e) {
             log.error("[VaultGlue] KV watch poll failed", e);
+            failureStrategyHandler.handle("KV", "watch", e, () -> {
+                pollChanges();
+                return null;
+            });
         }
     }
 

@@ -1,6 +1,7 @@
 package io.vaultglue.autoconfigure;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.vaultglue.core.FailureStrategyHandler;
 import io.vaultglue.kv.DefaultVaultKvOperations;
 import io.vaultglue.kv.VaultKvOperations;
 import io.vaultglue.kv.VaultKvWatcher;
@@ -41,8 +42,9 @@ public class VaultGlueKvAutoConfiguration {
     @ConditionalOnProperty(prefix = "vault-glue.kv.watch", name = "enabled", havingValue = "true")
     public VaultKvWatcher vaultKvWatcher(VaultKvOperations kvOperations,
                                          VaultValueBeanPostProcessor beanPostProcessor,
-                                         VaultGlueKvProperties properties) {
-        VaultKvWatcher watcher = new VaultKvWatcher(kvOperations, beanPostProcessor, properties);
+                                         VaultGlueKvProperties properties,
+                                         FailureStrategyHandler failureStrategyHandler) {
+        VaultKvWatcher watcher = new VaultKvWatcher(kvOperations, beanPostProcessor, properties, failureStrategyHandler);
         beanPostProcessor.setWatcher(watcher);
         return watcher;
     }
