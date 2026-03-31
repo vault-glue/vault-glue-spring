@@ -245,9 +245,13 @@ public class DefaultVaultTransitOperations implements VaultTransitOperations {
 
     private boolean extractBoolean(VaultResponse response, String key) {
         if (response == null || response.getData() == null) {
-            return false;
+            throw new VaultTransitException("Empty response from Vault transit");
         }
-        return toBoolean(response.getData().get(key));
+        Object value = response.getData().get(key);
+        if (value == null) {
+            throw new VaultTransitException("Missing '" + key + "' in transit response");
+        }
+        return toBoolean(value);
     }
 
     @SuppressWarnings("unchecked")

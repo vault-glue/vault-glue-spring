@@ -12,6 +12,7 @@ import org.springframework.vault.support.VaultResponse;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class DefaultVaultTransitOperationsTest {
@@ -128,5 +129,30 @@ class DefaultVaultTransitOperationsTest {
         assertEquals(1, result.failures().size());
         assertEquals("key not found", result.failures().get(0).error());
         assertEquals(1, result.failures().get(0).index());
+    }
+
+    @Test
+    void verifyHmac_shouldThrowOnNullResponse() {
+        Mockito.when(vaultTemplate.write(
+                Mockito.eq("transit/verify/test-key"),
+                Mockito.any()
+        )).thenReturn(null);
+
+        assertThrows(VaultTransitException.class,
+                () -> transitOps.verifyHmac("test-key", "data", "hmac-value"));
+    }
+
+    @Test
+    void verifyHmac_shouldThrowOnEmptyData() {
+        VaultResponse response = new VaultResponse();
+        response.setData(null);
+
+        Mockito.when(vaultTemplate.write(
+                Mockito.eq("transit/verify/test-key"),
+                Mockito.any()
+        )).thenReturn(response);
+
+        assertThrows(VaultTransitException.class,
+                () -> transitOps.verifyHmac("test-key", "data", "hmac-value"));
     }
 }
