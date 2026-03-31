@@ -2,6 +2,7 @@ package io.vaultglue.autoconfigure;
 
 import io.vaultglue.aws.VaultAwsCredentialProvider;
 import io.vaultglue.aws.VaultGlueAwsProperties;
+import io.vaultglue.core.FailureStrategyHandler;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -19,7 +20,8 @@ public class VaultGlueAwsAutoConfiguration {
     @Bean(initMethod = "start", destroyMethod = "shutdown")
     @ConditionalOnMissingBean
     public VaultAwsCredentialProvider vaultAwsCredentialProvider(VaultTemplate vaultTemplate,
-                                                                  VaultGlueAwsProperties properties) {
-        return new VaultAwsCredentialProvider(vaultTemplate, properties);
+                                                                  VaultGlueAwsProperties properties,
+                                                                  FailureStrategyHandler failureStrategyHandler) {
+        return new VaultAwsCredentialProvider(vaultTemplate, properties, failureStrategyHandler);
     }
 }

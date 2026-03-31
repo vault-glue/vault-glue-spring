@@ -1,5 +1,6 @@
 package io.vaultglue.aws;
 
+import io.vaultglue.core.FailureStrategyHandler;
 import io.vaultglue.core.VaultGlueTimeUtils;
 import java.util.Map;
 import java.util.concurrent.Executors;
@@ -16,12 +17,16 @@ public class VaultAwsCredentialProvider {
 
     private final VaultTemplate vaultTemplate;
     private final VaultGlueAwsProperties properties;
+    private final FailureStrategyHandler failureStrategyHandler;
     private final ScheduledExecutorService scheduler;
     private volatile AwsCredential currentCredential;
 
-    public VaultAwsCredentialProvider(VaultTemplate vaultTemplate, VaultGlueAwsProperties properties) {
+    public VaultAwsCredentialProvider(VaultTemplate vaultTemplate,
+                                       VaultGlueAwsProperties properties,
+                                       FailureStrategyHandler failureStrategyHandler) {
         this.vaultTemplate = vaultTemplate;
         this.properties = properties;
+        this.failureStrategyHandler = failureStrategyHandler;
         this.scheduler = Executors.newSingleThreadScheduledExecutor(r -> {
             Thread t = new Thread(r, "vault-glue-aws-credential");
             t.setDaemon(true);
@@ -48,7 +53,11 @@ public class VaultAwsCredentialProvider {
         try {
             rotate();
         } catch (Exception e) {
-            log.error("[VaultGlue] AWS credential rotation failed, will retry on next schedule", e);
+            log.error("[VaultGlue] AWS credential rotation failed", e);
+            failureStrategyHandler.handle("AWS", properties.getRole(), e, () -> {
+                rotate();
+                return null;
+            });
         }
     }
 
