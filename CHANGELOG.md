@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2026-03-31
+
+### Breaking Changes
+- **[Transit]** `encryptBatch()`, `decryptBatch()`, `rewrapBatch()` now return `BatchResult<String>` instead of `List<String>` — supports partial failure handling. Use `.successes()` for previous behavior.
+- **[Transit]** `@VaultEncrypt` annotation no longer accepts `key()` or `context()` arguments — these fields were never used by the converter. Remove arguments from annotation usage.
+
+### Added
+- **[Transit]** `BatchResult<T>` and `BatchResultItem<T>` records for batch operation results with per-item success/failure tracking
+
+### Fixed
+- **[Transit]** `VaultEncryptConverter` now uses lazy initialization — resolves JPA bean ordering issues where converter was used before Vault connection was ready
+- **[Transit]** `extractBoolean()` now throws `VaultTransitException` on null/empty responses instead of silently returning `false` — prevents server errors from being misinterpreted as "verification failed"
+- **[PKI]** `FailureStrategy` (restart/retry/ignore) now applied to certificate renewal failures — previously only logged errors
+- **[KV]** `FailureStrategy` now applied to watch polling failures — previously only logged errors
+- **[AWS]** `FailureStrategy` now applied to credential rotation failures — previously only logged errors
+
 ## [0.3.0] - 2026-03-24
 
 ### Breaking Changes
