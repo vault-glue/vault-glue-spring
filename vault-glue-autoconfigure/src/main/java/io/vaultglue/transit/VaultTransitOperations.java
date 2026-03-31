@@ -14,14 +14,14 @@ public interface VaultTransitOperations {
     String decrypt(String keyName, String ciphertext, String context);
 
     // Batch
-    List<String> encryptBatch(String keyName, List<String> plaintexts);
+    BatchResult<String> encryptBatch(String keyName, List<String> plaintexts);
 
-    List<String> decryptBatch(String keyName, List<String> ciphertexts);
+    BatchResult<String> decryptBatch(String keyName, List<String> ciphertexts);
 
     // Rewrap (re-encrypt with latest key version)
     String rewrap(String keyName, String ciphertext);
 
-    List<String> rewrapBatch(String keyName, List<String> ciphertexts);
+    BatchResult<String> rewrapBatch(String keyName, List<String> ciphertexts);
 
     // HMAC
     String hmac(String keyName, String data);

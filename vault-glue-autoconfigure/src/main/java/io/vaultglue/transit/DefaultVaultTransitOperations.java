@@ -72,8 +72,7 @@ public class DefaultVaultTransitOperations implements VaultTransitOperations {
     // ─── Batch ───────────────────────────────────────────────────
 
     @Override
-    @SuppressWarnings("unchecked")
-    public List<String> encryptBatch(String keyName, List<String> plaintexts) {
+    public BatchResult<String> encryptBatch(String keyName, List<String> plaintexts) {
         List<Map<String, String>> batchInput = plaintexts.stream()
                 .map(p -> Map.of("plaintext", Base64.getEncoder().encodeToString(p.getBytes(StandardCharsets.UTF_8))))
                 .toList();
@@ -86,8 +85,7 @@ public class DefaultVaultTransitOperations implements VaultTransitOperations {
     }
 
     @Override
-    @SuppressWarnings("unchecked")
-    public List<String> decryptBatch(String keyName, List<String> ciphertexts) {
+    public BatchResult<String> decryptBatch(String keyName, List<String> ciphertexts) {
         List<Map<String, String>> batchInput = ciphertexts.stream()
                 .map(c -> Map.of("ciphertext", c))
                 .toList();
@@ -96,14 +94,18 @@ public class DefaultVaultTransitOperations implements VaultTransitOperations {
                 transitPath("decrypt/" + keyName),
                 Map.of("batch_input", batchInput));
 
-        List<String> base64Results = extractBatchResults(response, "plaintext");
-        try {
-            return base64Results.stream()
-                    .map(b64 -> new String(Base64.getDecoder().decode(b64), StandardCharsets.UTF_8))
-                    .toList();
-        } catch (IllegalArgumentException e) {
-            throw new VaultTransitException("Invalid Base64 plaintext in transit batch decrypt response", e);
-        }
+        BatchResult<String> rawResult = extractBatchResults(response, "plaintext");
+
+        List<BatchResultItem<String>> decoded = rawResult.items().stream()
+                .map(item -> {
+                    if (item.isSuccess()) {
+                        String plain = new String(Base64.getDecoder().decode(item.value()), StandardCharsets.UTF_8);
+                        return new BatchResultItem<String>(item.index(), plain, null);
+                    }
+                    return item;
+                })
+                .toList();
+        return new BatchResult<>(decoded);
     }
 
     // ─── Rewrap ──────────────────────────────────────────────────
@@ -117,7 +119,7 @@ public class DefaultVaultTransitOperations implements VaultTransitOperations {
     }
 
     @Override
-    public List<String> rewrapBatch(String keyName, List<String> ciphertexts) {
+    public BatchResult<String> rewrapBatch(String keyName, List<String> ciphertexts) {
         List<Map<String, String>> batchInput = ciphertexts.stream()
                 .map(c -> Map.of("ciphertext", c))
                 .toList();
@@ -249,7 +251,7 @@ public class DefaultVaultTransitOperations implements VaultTransitOperations {
     }
 
     @SuppressWarnings("unchecked")
-    private List<String> extractBatchResults(VaultResponse response, String key) {
+    private BatchResult<String> extractBatchResults(VaultResponse response, String key) {
         if (response == null || response.getData() == null) {
             throw new VaultTransitException("Empty batch response from Vault transit");
         }
@@ -258,19 +260,22 @@ public class DefaultVaultTransitOperations implements VaultTransitOperations {
         if (batchResults == null) {
             throw new VaultTransitException("Missing 'batch_results' in transit response");
         }
-        List<String> results = new ArrayList<>(batchResults.size());
-        for (Map<String, Object> item : batchResults) {
+        List<BatchResultItem<String>> items = new ArrayList<>(batchResults.size());
+        for (int i = 0; i < batchResults.size(); i++) {
+            Map<String, Object> item = batchResults.get(i);
             if (item.containsKey("error")) {
-                throw new VaultTransitException("Batch item error: " + item.get("error"));
+                items.add(new BatchResultItem<>(i, null, item.get("error").toString()));
+            } else {
+                Object value = item.get(key);
+                if (value == null) {
+                    items.add(new BatchResultItem<>(i, null,
+                            "Missing '" + key + "' in batch result item"));
+                } else {
+                    items.add(new BatchResultItem<>(i, value.toString(), null));
+                }
             }
-            Object value = item.get(key);
-            if (value == null) {
-                throw new VaultTransitException(
-                        "Missing '" + key + "' in batch result item at index " + results.size());
-            }
-            results.add(value.toString());
         }
-        return results;
+        return new BatchResult<>(items);
     }
 
     private int toInt(Object value) {
