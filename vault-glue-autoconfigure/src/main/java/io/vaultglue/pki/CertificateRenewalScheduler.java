@@ -1,5 +1,6 @@
 package io.vaultglue.pki;
 
+import io.vaultglue.core.FailureStrategyHandler;
 import io.vaultglue.core.VaultGlueEventPublisher;
 import io.vaultglue.core.VaultGlueTimeUtils;
 import io.vaultglue.core.event.CertificateRenewedEvent;
@@ -17,14 +18,17 @@ public class CertificateRenewalScheduler {
     private final VaultPkiOperations pkiOperations;
     private final VaultGluePkiProperties properties;
     private final VaultGlueEventPublisher eventPublisher;
+    private final FailureStrategyHandler failureStrategyHandler;
     private final ScheduledExecutorService scheduler;
 
     public CertificateRenewalScheduler(VaultPkiOperations pkiOperations,
                                         VaultGluePkiProperties properties,
-                                        VaultGlueEventPublisher eventPublisher) {
+                                        VaultGlueEventPublisher eventPublisher,
+                                        FailureStrategyHandler failureStrategyHandler) {
         this.pkiOperations = pkiOperations;
         this.properties = properties;
         this.eventPublisher = eventPublisher;
+        this.failureStrategyHandler = failureStrategyHandler;
         this.scheduler = Executors.newSingleThreadScheduledExecutor(r -> {
             Thread t = new Thread(r, "vault-glue-pki-renewal");
             t.setDaemon(true);
@@ -95,6 +99,10 @@ public class CertificateRenewalScheduler {
             }
         } catch (Exception e) {
             log.error("[VaultGlue] Certificate renewal check failed", e);
+            failureStrategyHandler.handle("PKI", properties.getCommonName(), e, () -> {
+                checkAndRenew();
+                return null;
+            });
         }
     }
 

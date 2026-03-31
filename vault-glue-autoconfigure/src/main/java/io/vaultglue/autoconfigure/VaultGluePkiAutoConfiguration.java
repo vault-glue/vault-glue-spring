@@ -1,5 +1,6 @@
 package io.vaultglue.autoconfigure;
 
+import io.vaultglue.core.FailureStrategyHandler;
 import io.vaultglue.core.VaultGlueEventPublisher;
 import io.vaultglue.pki.CertificateRenewalScheduler;
 import io.vaultglue.pki.DefaultVaultPkiOperations;
@@ -32,7 +33,8 @@ public class VaultGluePkiAutoConfiguration {
     public CertificateRenewalScheduler certificateRenewalScheduler(
             VaultPkiOperations pkiOperations,
             VaultGluePkiProperties properties,
-            VaultGlueEventPublisher eventPublisher) {
-        return new CertificateRenewalScheduler(pkiOperations, properties, eventPublisher);
+            VaultGlueEventPublisher eventPublisher,
+            FailureStrategyHandler failureStrategyHandler) {
+        return new CertificateRenewalScheduler(pkiOperations, properties, eventPublisher, failureStrategyHandler);
     }
 }
