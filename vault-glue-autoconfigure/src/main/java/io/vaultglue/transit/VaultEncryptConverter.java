@@ -37,19 +37,24 @@ public class VaultEncryptConverter implements AttributeConverter<String, String>
     private static volatile ApplicationContext applicationContext;
     private static volatile String defaultKeyName;
     private static volatile boolean allowPlaintextRead = false;
+    private static volatile VaultTransitOperations cachedOperations;
 
-    public static void initialize(ApplicationContext context, String keyName) {
+    public static void setApplicationContext(ApplicationContext context) {
         synchronized (INIT_LOCK) {
             applicationContext = context;
+            cachedOperations = null;
+        }
+    }
+
+    public static void setDefaultKeyName(String keyName) {
+        synchronized (INIT_LOCK) {
             defaultKeyName = keyName;
         }
     }
 
-    public static void initialize(ApplicationContext context, String keyName, boolean plaintextRead) {
+    public static void setAllowPlaintextRead(boolean allow) {
         synchronized (INIT_LOCK) {
-            applicationContext = context;
-            defaultKeyName = keyName;
-            allowPlaintextRead = plaintextRead;
+            allowPlaintextRead = allow;
         }
     }
 
@@ -58,6 +63,7 @@ public class VaultEncryptConverter implements AttributeConverter<String, String>
             applicationContext = null;
             defaultKeyName = null;
             allowPlaintextRead = false;
+            cachedOperations = null;
         }
     }
 
@@ -118,11 +124,22 @@ public class VaultEncryptConverter implements AttributeConverter<String, String>
     }
 
     private VaultTransitOperations getTransitOperations() {
-        ApplicationContext ctx = applicationContext; // single volatile read
-        if (ctx == null) {
-            throw new IllegalStateException(
-                    "VaultEncryptConverter not initialized. Ensure VaultGlueTransitAutoConfiguration is active.");
+        VaultTransitOperations ops = cachedOperations;
+        if (ops != null) {
+            return ops;
         }
-        return ctx.getBean(VaultTransitOperations.class);
+        synchronized (INIT_LOCK) {
+            if (cachedOperations != null) {
+                return cachedOperations;
+            }
+            ApplicationContext ctx = applicationContext;
+            if (ctx == null) {
+                throw new IllegalStateException(
+                        "VaultEncryptConverter not initialized. "
+                        + "Ensure VaultGlueTransitAutoConfiguration is active.");
+            }
+            cachedOperations = ctx.getBean(VaultTransitOperations.class);
+            return cachedOperations;
+        }
     }
 }

@@ -36,26 +36,24 @@ public class VaultGlueTransitAutoConfiguration {
     }
 
     @Bean
-    public VaultEncryptConverterInitializer vaultEncryptConverterInitializer(
+    public VaultEncryptConverterConfigurer vaultEncryptConverterConfigurer(
             ApplicationContext applicationContext,
             VaultGlueTransitProperties properties) {
-        return new VaultEncryptConverterInitializer(applicationContext, properties);
-    }
-
-    static class VaultEncryptConverterInitializer implements DisposableBean {
-        VaultEncryptConverterInitializer(ApplicationContext applicationContext,
-                                          VaultGlueTransitProperties properties) {
-            // Use explicit default-key property, or fall back to first key in map
-            String defaultKey = properties.getDefaultKey();
-            if (defaultKey == null || defaultKey.isBlank()) {
-                defaultKey = properties.getKeys().isEmpty()
-                        ? "default"
-                        : properties.getKeys().keySet().iterator().next();
-            }
-            VaultEncryptConverter.initialize(
-                    applicationContext, defaultKey, properties.isAllowPlaintextRead());
+        String defaultKey = properties.getDefaultKey();
+        if (defaultKey == null || defaultKey.isBlank()) {
+            defaultKey = properties.getKeys().isEmpty()
+                    ? "default"
+                    : properties.getKeys().keySet().iterator().next();
         }
 
+        VaultEncryptConverter.setApplicationContext(applicationContext);
+        VaultEncryptConverter.setDefaultKeyName(defaultKey);
+        VaultEncryptConverter.setAllowPlaintextRead(properties.isAllowPlaintextRead());
+
+        return new VaultEncryptConverterConfigurer();
+    }
+
+    static class VaultEncryptConverterConfigurer implements DisposableBean {
         @Override
         public void destroy() {
             VaultEncryptConverter.reset();
