@@ -35,6 +35,11 @@ public class VaultAwsCredentialProvider {
     }
 
     public void start() {
+        if (properties.getRole() == null || properties.getRole().isBlank()) {
+            throw new IllegalStateException(
+                    "[VaultGlue] AWS 'vault-glue.aws.role' is required");
+        }
+
         try {
             rotate();
         } catch (Exception e) {
@@ -46,7 +51,7 @@ public class VaultAwsCredentialProvider {
         long renewalMs = (long) (ttlMs * 0.8);
         log.info("[VaultGlue] AWS credential rotation scheduled every {}ms", renewalMs);
 
-        scheduler.scheduleAtFixedRate(this::scheduledRotate, renewalMs, renewalMs, TimeUnit.MILLISECONDS);
+        scheduler.scheduleWithFixedDelay(this::scheduledRotate, renewalMs, renewalMs, TimeUnit.MILLISECONDS);
     }
 
     private void scheduledRotate() {
@@ -84,14 +89,14 @@ public class VaultAwsCredentialProvider {
                     : vaultTemplate.write(path, Map.of("ttl", properties.getTtl()));
 
             if (response == null || response.getData() == null) {
-                throw new RuntimeException("[VaultGlue] Failed to fetch AWS credential from: " + path);
+                throw new VaultAwsException("[VaultGlue] Failed to fetch AWS credential from: " + path);
             }
 
             Map<String, Object> data = response.getData();
             String accessKey = (String) data.get("access_key");
             String secretKey = (String) data.get("secret_key");
             if (accessKey == null || secretKey == null) {
-                throw new RuntimeException("[VaultGlue] AWS credential response missing access_key or secret_key");
+                throw new VaultAwsException("[VaultGlue] AWS credential response missing access_key or secret_key");
             }
 
             String securityToken = (String) data.get("security_token");

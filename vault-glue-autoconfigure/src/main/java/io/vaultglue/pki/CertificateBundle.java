@@ -13,7 +13,7 @@ public record CertificateBundle(
     Instant expiresAt
 ) {
     public long getRemainingHours() {
-        return Duration.between(Instant.now(), expiresAt).toHours();
+        return Math.max(0, Duration.between(Instant.now(), expiresAt).toHours());
     }
 
     public boolean isExpiringSoon(long thresholdHours) {

@@ -29,6 +29,7 @@ public class HikariDataSourceFactory {
             config.setMinimumIdle(0);
             config.setMaximumPoolSize(1);
             config.setInitializationFailTimeout(-1);
+            config.setConnectionTimeout(250);
         } else {
             HikariProperties hikari = props.getHikari();
             config.setMaximumPoolSize(hikari.getMaximumPoolSize());

@@ -30,7 +30,7 @@ public class DefaultVaultTotpOperations implements VaultTotpOperations {
         ));
 
         if (response == null || response.getData() == null) {
-            throw new RuntimeException("[VaultGlue] Failed to create TOTP key: " + name);
+            throw new VaultTotpException("[VaultGlue] Failed to create TOTP key: " + name);
         }
 
         Map<String, Object> data = response.getData();
@@ -48,11 +48,11 @@ public class DefaultVaultTotpOperations implements VaultTotpOperations {
 
         VaultResponse response = vaultTemplate.read(path);
         if (response == null || response.getData() == null) {
-            throw new RuntimeException("[VaultGlue] Failed to generate TOTP code for: " + name);
+            throw new VaultTotpException("[VaultGlue] Failed to generate TOTP code for: " + name);
         }
         String code = (String) response.getData().get("code");
         if (code == null) {
-            throw new RuntimeException("[VaultGlue] TOTP code missing in Vault response for: " + name);
+            throw new VaultTotpException("[VaultGlue] TOTP code missing in Vault response for: " + name);
         }
         return code;
     }

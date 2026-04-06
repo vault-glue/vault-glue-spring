@@ -70,7 +70,7 @@ class FailureStrategyHandlerTest {
     }
 
     @Test
-    void retryExhausted_shouldEscalateToShutdown() {
+    void retryExhausted_shouldContinueWithStaleState() {
         properties.setOnFailure(FailureStrategy.RETRY);
         properties.getRetry().setMaxAttempts(2);
         properties.getRetry().setDelay(50);
@@ -85,6 +85,6 @@ class FailureStrategyHandlerTest {
 
         org.junit.jupiter.api.Assertions.assertEquals(2, exhaustCallCount.get(),
                 "Supplier should have been called exactly maxAttempts (2) times");
-        Mockito.verify(applicationContext, Mockito.times(1)).close();
+        Mockito.verify(applicationContext, Mockito.never()).close();
     }
 }

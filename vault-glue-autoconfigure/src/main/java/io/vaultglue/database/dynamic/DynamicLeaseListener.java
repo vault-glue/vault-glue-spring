@@ -2,7 +2,6 @@ package io.vaultglue.database.dynamic;
 
 import io.vaultglue.core.FailureStrategyHandler;
 import io.vaultglue.core.VaultGlueEventPublisher;
-import io.vaultglue.core.event.CredentialRotatedEvent;
 import io.vaultglue.core.event.LeaseExpiredEvent;
 import io.vaultglue.core.event.LeaseRenewedEvent;
 import io.vaultglue.database.DataSourceRotator;

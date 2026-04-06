@@ -55,31 +55,35 @@ public class VaultKvWatcher {
 
     private void pollChanges() {
         try {
-            boolean changed = false;
-            for (var entry : lastKnownValues.entrySet()) {
-                String path = entry.getKey();
-                Map<String, Object> lastKnown = entry.getValue();
-                Map<String, Object> current = kvOperations.get(path);
-                if (current == null) {
-                    current = Collections.emptyMap();
-                }
-
-                if (!current.equals(lastKnown)) {
-                    log.info("[VaultGlue] KV change detected: {}", path);
-                    lastKnownValues.put(path, current);
-                    changed = true;
-                }
-            }
-
-            if (changed) {
-                beanPostProcessor.refreshAll();
-            }
+            doPollChanges();
         } catch (Exception e) {
             log.error("[VaultGlue] KV watch poll failed", e);
             failureStrategyHandler.handle("KV", "watch", e, () -> {
-                pollChanges();
+                doPollChanges();
                 return null;
             });
+        }
+    }
+
+    private void doPollChanges() {
+        boolean changed = false;
+        for (var entry : lastKnownValues.entrySet()) {
+            String path = entry.getKey();
+            Map<String, Object> lastKnown = entry.getValue();
+            Map<String, Object> current = kvOperations.get(path);
+            if (current == null) {
+                current = Collections.emptyMap();
+            }
+
+            if (!current.equals(lastKnown)) {
+                log.info("[VaultGlue] KV change detected: {}", path);
+                lastKnownValues.put(path, current);
+                changed = true;
+            }
+        }
+
+        if (changed) {
+            beanPostProcessor.refreshAll();
         }
     }
 

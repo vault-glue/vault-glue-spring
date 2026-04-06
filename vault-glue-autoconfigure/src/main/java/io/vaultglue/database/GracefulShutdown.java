@@ -38,9 +38,15 @@ public class GracefulShutdown {
      * Called during application shutdown to ensure old pools are properly closed.
      */
     public static void awaitAll(int timeoutSeconds) {
+        long deadline = System.currentTimeMillis() + (timeoutSeconds * 1_000L);
         for (Thread thread : shutdownThreads) {
+            long remaining = deadline - System.currentTimeMillis();
+            if (remaining <= 0) {
+                log.warn("[VaultGlue] Graceful shutdown await timed out after {}s", timeoutSeconds);
+                break;
+            }
             try {
-                thread.join(timeoutSeconds * 1_000L);
+                thread.join(remaining);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 log.warn("[VaultGlue] Interrupted while waiting for graceful shutdown thread: {}",

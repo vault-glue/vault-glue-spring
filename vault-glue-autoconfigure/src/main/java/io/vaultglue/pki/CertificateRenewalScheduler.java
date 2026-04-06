@@ -56,6 +56,11 @@ public class CertificateRenewalScheduler {
             log.info("[VaultGlue] Initial certificate issued");
         } catch (Exception e) {
             log.error("[VaultGlue] Failed to issue initial certificate", e);
+            failureStrategyHandler.handle("PKI", properties.getCommonName(), e, () -> {
+                pkiOperations.issue(properties.getRole(), properties.getCommonName(),
+                        VaultGlueTimeUtils.parseTtl(properties.getTtl(), Duration.ofHours(72)));
+                return null;
+            });
         }
 
         long interval = properties.getCheckInterval();
@@ -69,40 +74,44 @@ public class CertificateRenewalScheduler {
 
     private void checkAndRenew() {
         try {
-            CertificateBundle current = pkiOperations.getCurrent();
-            if (current == null || current.isExpiringSoon(properties.getRenewThresholdHours())) {
-                log.info("[VaultGlue] Certificate expiring soon (remaining={}h), renewing...",
-                        current != null ? current.getRemainingHours() : 0);
-
-                // Revoke the previous certificate
-                if (current != null && current.serialNumber() != null) {
-                    try {
-                        pkiOperations.revoke(current.serialNumber());
-                        log.info("[VaultGlue] Previous certificate revoked: serial={}",
-                                current.serialNumber());
-                    } catch (Exception revokeEx) {
-                        log.warn("[VaultGlue] Failed to revoke previous certificate: serial={}",
-                                current.serialNumber(), revokeEx);
-                    }
-                }
-
-                CertificateBundle renewed = pkiOperations.issue(
-                        properties.getRole(),
-                        properties.getCommonName(),
-                        VaultGlueTimeUtils.parseTtl(properties.getTtl(), Duration.ofHours(72)));
-
-                eventPublisher.publish(new CertificateRenewedEvent(
-                        this, "pki", properties.getCommonName(), renewed));
-
-                log.info("[VaultGlue] Certificate renewed: serial={}, expires={}",
-                        renewed.serialNumber(), renewed.expiresAt());
-            }
+            doCheckAndRenew();
         } catch (Exception e) {
             log.error("[VaultGlue] Certificate renewal check failed", e);
             failureStrategyHandler.handle("PKI", properties.getCommonName(), e, () -> {
-                checkAndRenew();
+                doCheckAndRenew();
                 return null;
             });
+        }
+    }
+
+    private void doCheckAndRenew() {
+        CertificateBundle current = pkiOperations.getCurrent();
+        if (current == null || current.isExpiringSoon(properties.getRenewThresholdHours())) {
+            log.info("[VaultGlue] Certificate expiring soon (remaining={}h), renewing...",
+                    current != null ? current.getRemainingHours() : 0);
+
+            // Revoke the previous certificate
+            if (current != null && current.serialNumber() != null) {
+                try {
+                    pkiOperations.revoke(current.serialNumber());
+                    log.info("[VaultGlue] Previous certificate revoked: serial={}",
+                            current.serialNumber());
+                } catch (Exception revokeEx) {
+                    log.warn("[VaultGlue] Failed to revoke previous certificate: serial={}",
+                            current.serialNumber(), revokeEx);
+                }
+            }
+
+            CertificateBundle renewed = pkiOperations.issue(
+                    properties.getRole(),
+                    properties.getCommonName(),
+                    VaultGlueTimeUtils.parseTtl(properties.getTtl(), Duration.ofHours(72)));
+
+            eventPublisher.publish(new CertificateRenewedEvent(
+                    this, "pki", properties.getCommonName(), renewed));
+
+            log.info("[VaultGlue] Certificate renewed: serial={}, expires={}",
+                    renewed.serialNumber(), renewed.expiresAt());
         }
     }
 

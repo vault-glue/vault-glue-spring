@@ -59,9 +59,8 @@ public class FailureStrategyHandler {
             }
         }
 
-        log.error("[VaultGlue] All {} retries exhausted for {}/{}. Escalating to shutdown.",
+        log.error("[VaultGlue] All {} retries exhausted for {}/{}. Continuing with stale state.",
                 maxAttempts, engine, identifier, cause);
-        shutdownApplication(engine, identifier, cause);
     }
 
     private void shutdownApplication(String engine, String identifier, Exception cause) {

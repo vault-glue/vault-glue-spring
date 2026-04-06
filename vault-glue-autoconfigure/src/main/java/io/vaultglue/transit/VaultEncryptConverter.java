@@ -79,7 +79,7 @@ public class VaultEncryptConverter implements AttributeConverter<String, String>
             return VG_PREFIX + keyName + ":" + ciphertext;
         } catch (Exception e) {
             log.error("[VaultGlue] Failed to encrypt field value", e);
-            throw new RuntimeException("Vault transit encryption failed", e);
+            throw new VaultTransitException("Vault transit encryption failed", e);
         }
     }
 
@@ -119,7 +119,7 @@ public class VaultEncryptConverter implements AttributeConverter<String, String>
             return transit.decrypt(keyName, ciphertext);
         } catch (Exception e) {
             log.error("[VaultGlue] Failed to decrypt field value with key '{}'", keyName, e);
-            throw new RuntimeException("Vault transit decryption failed", e);
+            throw new VaultTransitException("Vault transit decryption failed", e);
         }
     }
 

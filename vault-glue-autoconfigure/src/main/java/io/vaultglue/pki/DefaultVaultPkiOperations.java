@@ -53,7 +53,7 @@ public class DefaultVaultPkiOperations implements VaultPkiOperations {
 
         VaultResponse response = vaultTemplate.write(path, body);
         if (response == null || response.getData() == null) {
-            throw new RuntimeException("[VaultGlue] Failed to issue certificate from PKI");
+            throw new VaultPkiException("[VaultGlue] Failed to issue certificate from PKI");
         }
 
         Map<String, Object> data = response.getData();
@@ -96,10 +96,10 @@ public class DefaultVaultPkiOperations implements VaultPkiOperations {
                 return Instant.ofEpochSecond(Long.parseLong(s));
             } catch (NumberFormatException e) {
                 log.error("[VaultGlue] Failed to parse PKI expiration value: '{}'", s);
-                throw new RuntimeException("[VaultGlue] Invalid PKI expiration format: " + s, e);
+                throw new VaultPkiException("[VaultGlue] Invalid PKI expiration format: " + s, e);
             }
         }
         log.error("[VaultGlue] PKI expiration is null or unknown type: {}", expiration);
-        throw new RuntimeException("[VaultGlue] Missing or invalid PKI expiration in Vault response");
+        throw new VaultPkiException("[VaultGlue] Missing or invalid PKI expiration in Vault response");
     }
 }
