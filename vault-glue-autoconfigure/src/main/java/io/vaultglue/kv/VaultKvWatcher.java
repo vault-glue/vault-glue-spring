@@ -49,7 +49,13 @@ public class VaultKvWatcher {
     public void watch(String path) {
         lastKnownValues.computeIfAbsent(path, p -> {
             log.debug("[VaultGlue] Watching KV path: {}", p);
-            return kvOperations.get(p);
+            try {
+                return kvOperations.get(p);
+            } catch (Exception e) {
+                log.warn("[VaultGlue] Failed to fetch initial value for watch path '{}', "
+                        + "will detect on next poll", p, e);
+                return Collections.emptyMap();
+            }
         });
     }
 

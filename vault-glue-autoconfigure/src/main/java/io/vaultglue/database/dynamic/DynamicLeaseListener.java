@@ -5,6 +5,7 @@ import io.vaultglue.core.VaultGlueEventPublisher;
 import io.vaultglue.core.event.LeaseExpiredEvent;
 import io.vaultglue.core.event.LeaseRenewedEvent;
 import io.vaultglue.database.DataSourceRotator;
+import io.vaultglue.database.VaultDatabaseException;
 import io.vaultglue.database.VaultGlueDatabaseProperties.DataSourceProperties;
 import io.vaultglue.database.VaultGlueDelegatingDataSource;
 import java.time.Duration;
@@ -79,18 +80,18 @@ public class DynamicLeaseListener {
         // Wait until the initial credential is ready
         try {
             if (!initialLatch.await(30, TimeUnit.SECONDS)) {
-                throw new RuntimeException(
+                throw new VaultDatabaseException(
                         "[VaultGlue] Timeout waiting for initial dynamic credential for '" + name + "'");
             }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            throw new RuntimeException("[VaultGlue] Interrupted waiting for credential for '" + name + "'", e);
+            throw new VaultDatabaseException("[VaultGlue] Interrupted waiting for credential for '" + name + "'", e);
         }
 
         // Check if the latch was released due to an error
         Exception error = initialError.get();
         if (error != null) {
-            throw new RuntimeException(
+            throw new VaultDatabaseException(
                     "[VaultGlue] Failed to obtain initial dynamic credential for '" + name + "'", error);
         }
     }
