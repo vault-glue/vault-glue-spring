@@ -110,9 +110,9 @@ public class EncryptionService {
 }
 ```
 
-### @VaultEncrypt (JPA Integration)
+### JPA Integration (VaultEncryptConverter)
 
-Automatically encrypt and decrypt JPA entity fields at the persistence layer:
+Automatically encrypt and decrypt JPA entity fields at the persistence layer using `@Convert`:
 
 ```java
 @Entity
@@ -123,17 +123,17 @@ public class User {
 
     private String name;
 
-    @VaultEncrypt(key = "user-pii")
+    @Convert(converter = VaultEncryptConverter.class)
     private String ssn;           // encrypted before INSERT, decrypted after SELECT
 
-    @VaultEncrypt(key = "user-pii", context = "email")
-    private String email;         // with key derivation context
+    @Convert(converter = VaultEncryptConverter.class)
+    private String email;         // uses the configured default transit key
 }
 ```
 
-The converter stores data in the format `vg:{keyName}:vault:v1:{ciphertext}` so VaultGlue knows which key was used for encryption.
+The converter stores data in the format `vg:{keyName}:vault:v1:{ciphertext}` so VaultGlue knows which key was used for encryption. The default key is configured via `vault-glue.transit.default-key`.
 
-No additional JPA configuration is needed. VaultGlue registers the `AttributeConverter` automatically.
+No additional JPA configuration is needed. VaultGlue registers the converter automatically.
 
 ## API Reference
 

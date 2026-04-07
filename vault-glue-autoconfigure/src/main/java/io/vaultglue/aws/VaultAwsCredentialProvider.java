@@ -102,7 +102,7 @@ public class VaultAwsCredentialProvider {
             String securityToken = (String) data.get("security_token");
             boolean isStsType = !"iam_user".equals(properties.getCredentialType());
             if (isStsType && (securityToken == null || securityToken.isBlank())) {
-                throw new RuntimeException(
+                throw new VaultAwsException(
                         "[VaultGlue] AWS STS credential response missing security_token for type: "
                         + properties.getCredentialType());
             }

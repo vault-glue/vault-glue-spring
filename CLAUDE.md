@@ -13,7 +13,7 @@ vault-glue-spring/
 │       ├── core/                    # Properties, Event System, FailureStrategy, Health
 │       ├── database/                # DB Engine (Static/Dynamic Role, multi-DataSource)
 │       ├── kv/                      # KV Engine (CRUD, @VaultValue, Watch)
-│       ├── transit/                 # Transit Engine (encrypt/decrypt, @VaultEncrypt, key mgmt)
+│       ├── transit/                 # Transit Engine (encrypt/decrypt, VaultEncryptConverter, key mgmt)
 │       ├── pki/                     # PKI Engine (certificate issue/renewal)
 │       ├── totp/                    # TOTP Engine (OTP generate/verify)
 │       └── aws/                     # AWS Engine (credential rotation)
@@ -199,7 +199,7 @@ vault-glue:
 - [x] KV Engine: @VaultValue annotation + BeanPostProcessor
 - [x] KV Engine: Watch mode (change detection polling)
 - [x] Transit Engine: VaultTransitOperations (encrypt/decrypt/rewrap/hmac/sign/verify)
-- [x] Transit Engine: @VaultEncrypt JPA AttributeConverter
+- [x] Transit Engine: VaultEncryptConverter JPA AttributeConverter
 - [x] Transit Engine: Auto key creation (TransitKeyInitializer)
 - [x] PKI Engine: VaultPkiOperations + CertificateRenewalScheduler
 - [x] TOTP Engine: VaultTotpOperations

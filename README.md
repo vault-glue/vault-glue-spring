@@ -19,7 +19,7 @@ VaultGlue fills that gap. It builds on top of Spring Cloud Vault and turns every
 |--------|-------------|
 | [**Database**](docs/database.md) | Static & dynamic credential rotation, multi-DataSource, HikariCP integration |
 | [**KV**](docs/kv.md) | CRUD operations, `@VaultValue` field injection, change detection polling |
-| [**Transit**](docs/transit.md) | Encrypt/decrypt, batch operations, HMAC, sign/verify, `@VaultEncrypt` JPA converter |
+| [**Transit**](docs/transit.md) | Encrypt/decrypt, batch operations, HMAC, sign/verify, JPA `VaultEncryptConverter` |
 | [**PKI**](docs/pki.md) | Certificate issuance, automatic renewal scheduling, SSL context configuration |
 | [**TOTP**](docs/totp.md) | OTP key creation, code generation, validation |
 | [**AWS**](docs/aws.md) | STS/IAM credential provisioning with automatic rotation |

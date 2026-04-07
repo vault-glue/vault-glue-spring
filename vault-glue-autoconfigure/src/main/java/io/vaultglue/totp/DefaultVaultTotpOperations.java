@@ -63,7 +63,7 @@ public class DefaultVaultTotpOperations implements VaultTotpOperations {
 
         VaultResponse response = vaultTemplate.write(path, Map.of("code", code));
         if (response == null || response.getData() == null) {
-            throw new RuntimeException(
+            throw new VaultTotpException(
                     "[VaultGlue] Failed to validate TOTP code for: " + name
                     + ". Vault returned empty response.");
         }

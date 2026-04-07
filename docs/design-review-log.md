@@ -4,6 +4,40 @@ Records design review findings, improvements, and rationale for each version.
 
 ---
 
+## 2026-04-07 — v0.4.0 Post-Release Code Review (3 passes, 15 issues)
+
+Three-pass deep review of the full codebase after v0.4.0 release. No Critical issues found on final pass.
+
+### Fixes Applied
+
+| Item | Change | Rationale |
+|------|--------|-----------|
+| KV/PKI retry recursion | Extracted `doPollChanges()`/`doCheckAndRenew()` — retry lambda calls discrete operation only | `pollChanges()` retry lambda called `pollChanges()` again, which re-entered `failureStrategyHandler.handle()` → exponential recursion (3^3=27 attempts for maxAttempts=3) |
+| RETRY exhaustion behavior | Retry exhaustion now logs and continues with stale state instead of `shutdownApplication()` | RETRY and RESTART had identical failure behavior. Users choosing RETRY expect degraded operation, not shutdown |
+| AWS `scheduleAtFixedRate` | Changed to `scheduleWithFixedDelay` | All other engines used `scheduleWithFixedDelay`. `atFixedRate` stacks executions when Vault is slow |
+| `GracefulShutdown.awaitAll()` | Per-thread timeout → total deadline | N threads × 10s timeout = potentially N×10s blocking. Now respects a single total deadline |
+| AWS role validation | Added null/blank check in `start()` | Missing role produced confusing `aws/sts/null` Vault path error |
+| `CertificateBundle.getRemainingHours()` | `Math.max(0, ...)` to prevent negative values | Expired cert showed negative hours in logs |
+| `HikariDataSourceFactory` placeholder | Added `connectionTimeout(250)` | Placeholder DataSource should fail fast if accidentally used, not block 30s |
+| Engine-specific exceptions | Created `VaultPkiException`, `VaultTotpException`, `VaultAwsException` | Generic `RuntimeException` across PKI/TOTP/AWS made it impossible to catch engine-specific failures |
+| `VaultEncryptConverter` exceptions | `RuntimeException` → `VaultTransitException` | Inconsistent with other Transit code that used `VaultTransitException` |
+| PKI initial issuance | Applied `failureStrategyHandler` to `start()` initial cert issuance | Initial failure was logged and silently swallowed — no retry/restart applied |
+| `@VaultEncrypt` annotation | Removed entirely | No processing logic existed. `@Convert(converter = VaultEncryptConverter.class)` is the actual mechanism |
+| Unused import | Removed `CredentialRotatedEvent` from `DynamicLeaseListener` | Import was unused (event published in `DataSourceRotator`) |
+| TOTP/AWS missed exception replacements | `validate()` `RuntimeException` → `VaultTotpException`, security_token `RuntimeException` → `VaultAwsException` | Missed during batch exception replacement in 2nd pass |
+
+### Design Decisions
+
+- **RETRY exhaustion → continue (not shutdown):** Previous behavior made RETRY identical to RESTART on failure. New behavior: retry with backoff, then continue operating with stale credentials. The next scheduled cycle will retry again. This gives transient Vault outages a chance to self-heal.
+- **`@VaultEncrypt` removal:** The annotation was a non-functional marker. JPA `AttributeConverter` registration happens via `@Convert`, not custom annotations. Removing eliminates user confusion about unused `key()`/`context()` parameters.
+
+### Remaining Items (Documented, Not Fixed)
+
+- `VaultEncryptConverter` / `GracefulShutdown` static state — JPA `AttributeConverter` constraint (no-arg constructor, no DI). Documented as known limitation for multi-context test environments.
+- `DynamicLeaseListener` global listeners — `SecretLeaseContainer` API does not provide `removeLeaseListener`. Listeners are filtered by path, which is sufficient for typical deployments.
+
+---
+
 ## 2026-03-24 — v0.2.3 Comprehensive Code Review (42 issues)
 
 Full codebase audit across all engines, build config, and tests. Parallel review by 5 agents covering core, database, KV/Transit/PKI/TOTP/AWS, tests, and build configuration.
@@ -161,7 +195,7 @@ Full code review identified and fixed 12 critical/high-severity bugs across all 
 
 - **Scope:** Targeted fixes only — no refactoring or new features. Only bugs that could cause production failures.
 - **FailureStrategy unification deferred:** KV/PKI/AWS/TOTP do not consistently apply FailureStrategy. Acknowledged but excluded from 0.2.0 scope — planned as separate work.
-- **@VaultEncrypt annotation issue deferred:** The annotation's `key`/`context` fields are never read (only `VaultEncryptConverter` via JPA `@Convert` is used). Requires API design change — planned for 0.3.0.
+- **@VaultEncrypt annotation:** Removed entirely in v0.4.0 code review. The annotation had no processing logic — `VaultEncryptConverter` via JPA `@Convert` is the only mechanism.
 
 ---
 
@@ -213,4 +247,4 @@ Full code review identified and fixed 12 critical/high-severity bugs across all 
 | No Lombok | Manual constructors, getters, setters | Reduces magic, improves debuggability, avoids annotation processor issues in consumer projects |
 | Database multi-source | `VaultGlueDataSources` container with named access | Enterprise apps often need multiple databases (primary + replica). Named access via `vaultGlueDataSources.get("replica")` |
 | Static vs Dynamic DB credentials | Separate implementations (`StaticRefreshScheduler` vs `DynamicLeaseListener`) | Static: timer-based rotation from Vault `/creds/`. Dynamic: lease-based via `SecretLeaseContainer`. Fundamentally different lifecycle models |
-| Transit `@VaultEncrypt` | JPA `AttributeConverter` with `vg:{key}:vault:v1:...` format | Embeds key name in ciphertext so different fields can use different keys. Supports key rotation and legacy format migration |
+| Transit `VaultEncryptConverter` | JPA `AttributeConverter` with `vg:{key}:vault:v1:...` format via `@Convert` | Embeds key name in ciphertext so different fields can use different keys. Supports key rotation and legacy format migration. `@VaultEncrypt` marker removed in v0.4.0 — no processing logic existed |

@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking Changes
 - **[Transit]** `encryptBatch()`, `decryptBatch()`, `rewrapBatch()` now return `BatchResult<String>` instead of `List<String>` — supports partial failure handling. Use `.successes()` for previous behavior.
-- **[Transit]** `@VaultEncrypt` annotation no longer accepts `key()` or `context()` arguments — these fields were never used by the converter. Remove arguments from annotation usage.
+- **[Transit]** `@VaultEncrypt` annotation removed — it was a non-functional marker. Use `@Convert(converter = VaultEncryptConverter.class)` directly.
 
 ### Added
 - **[Transit]** `BatchResult<T>` and `BatchResultItem<T>` records for batch operation results with per-item success/failure tracking
