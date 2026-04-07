@@ -113,7 +113,7 @@ public class DynamicLeaseListener {
         if (body == null) {
             log.error("[VaultGlue] No credential body in lease event for '{}'", name);
             initialError.compareAndSet(null,
-                    new RuntimeException("[VaultGlue] No credential body in lease event for '" + name + "'"));
+                    new VaultDatabaseException("[VaultGlue] No credential body in lease event for '" + name + "'"));
             initialLatch.countDown();
             return;
         }
@@ -124,7 +124,7 @@ public class DynamicLeaseListener {
         if (username == null || password == null) {
             log.error("[VaultGlue] Missing username/password in lease event for '{}'", name);
             initialError.compareAndSet(null,
-                    new RuntimeException("[VaultGlue] Missing username/password in lease event for '" + name + "'"));
+                    new VaultDatabaseException("[VaultGlue] Missing username/password in lease event for '" + name + "'"));
             initialLatch.countDown();
             return;
         }
