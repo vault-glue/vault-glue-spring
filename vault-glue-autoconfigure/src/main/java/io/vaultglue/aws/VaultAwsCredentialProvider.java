@@ -14,6 +14,7 @@ import org.springframework.vault.support.VaultResponse;
 public class VaultAwsCredentialProvider {
 
     private static final Logger log = LoggerFactory.getLogger(VaultAwsCredentialProvider.class);
+    private static final double RENEWAL_THRESHOLD_RATIO = 0.8;
 
     private final VaultTemplate vaultTemplate;
     private final VaultGlueAwsProperties properties;
@@ -48,7 +49,7 @@ public class VaultAwsCredentialProvider {
         }
 
         long ttlMs = VaultGlueTimeUtils.parseTtlMs(properties.getTtl(), 3_600_000);
-        long renewalMs = (long) (ttlMs * 0.8);
+        long renewalMs = (long) (ttlMs * RENEWAL_THRESHOLD_RATIO);
         log.info("[VaultGlue] AWS credential rotation scheduled every {}ms", renewalMs);
 
         scheduler.scheduleWithFixedDelay(this::scheduledRotate, renewalMs, renewalMs, TimeUnit.MILLISECONDS);
