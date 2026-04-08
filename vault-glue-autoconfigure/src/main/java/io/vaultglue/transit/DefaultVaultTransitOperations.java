@@ -65,7 +65,7 @@ public class DefaultVaultTransitOperations implements VaultTransitOperations {
         try {
             return new String(Base64.getDecoder().decode(base64Plaintext), StandardCharsets.UTF_8);
         } catch (IllegalArgumentException e) {
-            throw new VaultTransitException("Invalid Base64 plaintext in transit decrypt response", e);
+            throw new VaultTransitException("[VaultGlue] Invalid Base64 plaintext in transit decrypt response", e);
         }
     }
 
@@ -234,22 +234,22 @@ public class DefaultVaultTransitOperations implements VaultTransitOperations {
 
     private String extractString(VaultResponse response, String key) {
         if (response == null || response.getData() == null) {
-            throw new VaultTransitException("Empty response from Vault transit");
+            throw new VaultTransitException("[VaultGlue] Empty response from Vault transit");
         }
         Object value = response.getData().get(key);
         if (value == null) {
-            throw new VaultTransitException("Missing '" + key + "' in transit response");
+            throw new VaultTransitException("[VaultGlue] Missing '" + key + "' in transit response");
         }
         return value.toString();
     }
 
     private boolean extractBoolean(VaultResponse response, String key) {
         if (response == null || response.getData() == null) {
-            throw new VaultTransitException("Empty response from Vault transit");
+            throw new VaultTransitException("[VaultGlue] Empty response from Vault transit");
         }
         Object value = response.getData().get(key);
         if (value == null) {
-            throw new VaultTransitException("Missing '" + key + "' in transit response");
+            throw new VaultTransitException("[VaultGlue] Missing '" + key + "' in transit response");
         }
         return toBoolean(value);
     }
@@ -257,12 +257,12 @@ public class DefaultVaultTransitOperations implements VaultTransitOperations {
     @SuppressWarnings("unchecked")
     private BatchResult<String> extractBatchResults(VaultResponse response, String key) {
         if (response == null || response.getData() == null) {
-            throw new VaultTransitException("Empty batch response from Vault transit");
+            throw new VaultTransitException("[VaultGlue] Empty batch response from Vault transit");
         }
         List<Map<String, Object>> batchResults =
                 (List<Map<String, Object>>) response.getData().get("batch_results");
         if (batchResults == null) {
-            throw new VaultTransitException("Missing 'batch_results' in transit response");
+            throw new VaultTransitException("[VaultGlue] Missing 'batch_results' in transit response");
         }
         List<BatchResultItem<String>> items = new ArrayList<>(batchResults.size());
         for (int i = 0; i < batchResults.size(); i++) {
