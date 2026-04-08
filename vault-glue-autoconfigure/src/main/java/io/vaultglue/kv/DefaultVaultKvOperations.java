@@ -1,11 +1,11 @@
 package io.vaultglue.kv;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.vault.core.VaultKeyValueOperations;
@@ -59,7 +59,7 @@ public class DefaultVaultKvOperations implements VaultKvOperations {
     @Override
     public Map<String, Object> get(String path, int version) {
         if (properties.getVersion() != 2) {
-            throw new UnsupportedOperationException("Versioned get is only supported with KV v2");
+            throw new UnsupportedOperationException("[VaultGlue] Versioned get is only supported with KV v2");
         }
         log.debug("[VaultGlue] KV get version {}: {}", version, path);
         var versionedOps = vaultTemplate.opsForVersionedKeyValue(properties.getBackend());
@@ -94,7 +94,7 @@ public class DefaultVaultKvOperations implements VaultKvOperations {
     @Override
     public void delete(String path, int... versions) {
         if (properties.getVersion() != 2) {
-            throw new UnsupportedOperationException("Versioned delete is only supported with KV v2");
+            throw new UnsupportedOperationException("[VaultGlue] Versioned delete is only supported with KV v2");
         }
         log.debug("[VaultGlue] KV delete versions: {}", path);
         // KV v2 soft delete specific versions
@@ -106,7 +106,7 @@ public class DefaultVaultKvOperations implements VaultKvOperations {
     @Override
     public void undelete(String path, int... versions) {
         if (properties.getVersion() != 2) {
-            throw new UnsupportedOperationException("Undelete is only supported with KV v2");
+            throw new UnsupportedOperationException("[VaultGlue] Undelete is only supported with KV v2");
         }
         log.debug("[VaultGlue] KV undelete: {}", path);
         String fullPath = properties.getBackend() + "/undelete/" + path;
@@ -117,7 +117,7 @@ public class DefaultVaultKvOperations implements VaultKvOperations {
     @Override
     public void destroy(String path, int... versions) {
         if (properties.getVersion() != 2) {
-            throw new UnsupportedOperationException("Destroy is only supported with KV v2");
+            throw new UnsupportedOperationException("[VaultGlue] Destroy is only supported with KV v2");
         }
         log.debug("[VaultGlue] KV destroy: {}", path);
         String fullPath = properties.getBackend() + "/destroy/" + path;
@@ -129,7 +129,7 @@ public class DefaultVaultKvOperations implements VaultKvOperations {
     @SuppressWarnings("unchecked")
     public VaultKvMetadata metadata(String path) {
         if (properties.getVersion() != 2) {
-            throw new UnsupportedOperationException("Metadata is only supported with KV v2");
+            throw new UnsupportedOperationException("[VaultGlue] Metadata is only supported with KV v2");
         }
         String fullPath = properties.getBackend() + "/metadata/" + path;
         VaultResponse response = vaultTemplate.read(fullPath);

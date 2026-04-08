@@ -1,21 +1,10 @@
 package io.vaultglue.autoconfigure;
 
-import com.zaxxer.hikari.HikariDataSource;
-import io.vaultglue.core.FailureStrategyHandler;
-import io.vaultglue.core.VaultGlueEventPublisher;
-import io.vaultglue.database.DataSourceRotator;
-import io.vaultglue.database.GracefulShutdown;
-import io.vaultglue.database.HikariDataSourceFactory;
-import io.vaultglue.database.VaultGlueDatabaseProperties;
-import io.vaultglue.database.VaultGlueDatabaseProperties.DataSourceProperties;
-import io.vaultglue.database.VaultGlueDelegatingDataSource;
-import io.vaultglue.database.dynamic.DynamicLeaseListener;
-import io.vaultglue.database.static_.StaticCredentialProvider;
-import io.vaultglue.database.static_.StaticRefreshScheduler;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import javax.sql.DataSource;
+import com.zaxxer.hikari.HikariDataSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
@@ -29,6 +18,17 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean;
 import org.springframework.vault.core.VaultTemplate;
 import org.springframework.vault.core.lease.SecretLeaseContainer;
+import io.vaultglue.core.FailureStrategyHandler;
+import io.vaultglue.core.VaultGlueEventPublisher;
+import io.vaultglue.database.DataSourceRotator;
+import io.vaultglue.database.GracefulShutdown;
+import io.vaultglue.database.HikariDataSourceFactory;
+import io.vaultglue.database.VaultGlueDatabaseProperties;
+import io.vaultglue.database.VaultGlueDatabaseProperties.DataSourceProperties;
+import io.vaultglue.database.VaultGlueDelegatingDataSource;
+import io.vaultglue.database.dynamic.DynamicLeaseListener;
+import io.vaultglue.database.static_.StaticCredentialProvider;
+import io.vaultglue.database.static_.StaticRefreshScheduler;
 
 @AutoConfiguration(after = VaultGlueCoreAutoConfiguration.class, before = DataSourceAutoConfiguration.class)
 @ConditionalOnClass(HikariDataSource.class)
