@@ -82,7 +82,7 @@ class VaultAwsCredentialProviderTest {
         Awaitility.await()
                 .atMost(5, TimeUnit.SECONDS)
                 .untilAsserted(() -> Mockito.verify(failureStrategyHandler, Mockito.atLeastOnce())
-                        .handle(Mockito.eq("AWS"), Mockito.eq("test-role"), Mockito.any(), Mockito.any()));
+                        .handle(Mockito.eq("aws"), Mockito.eq("test-role"), Mockito.any(), Mockito.any()));
 
         provider.shutdown();
     }

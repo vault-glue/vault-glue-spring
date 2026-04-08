@@ -42,7 +42,7 @@ class CertificateRenewalSchedulerTest {
         Awaitility.await()
                 .atMost(5, TimeUnit.SECONDS)
                 .untilAsserted(() -> verify(failureStrategyHandler, atLeastOnce())
-                        .handle(eq("PKI"), eq("test.example.com"), any(), any()));
+                        .handle(eq("pki"), eq("test.example.com"), any(), any()));
 
         scheduler.shutdown();
     }

@@ -59,7 +59,7 @@ public class VaultAwsCredentialProvider {
             rotate();
         } catch (Exception e) {
             log.error("[VaultGlue] AWS credential rotation failed", e);
-            failureStrategyHandler.handle("AWS", properties.getRole(), e, () -> {
+            failureStrategyHandler.handle("aws", properties.getRole(), e, () -> {
                 rotate();
                 return null;
             });
