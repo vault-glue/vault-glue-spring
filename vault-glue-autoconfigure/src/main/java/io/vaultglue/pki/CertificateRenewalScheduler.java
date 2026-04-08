@@ -51,14 +51,12 @@ public class CertificateRenewalScheduler {
 
         // Initial issue
         try {
-            pkiOperations.issue(properties.getRole(), properties.getCommonName(),
-                    VaultGlueTimeUtils.parseTtl(properties.getTtl(), Duration.ofHours(72)));
+            pkiOperations.issue(properties.getRole(), properties.getCommonName(), getEffectiveTtl());
             log.info("[VaultGlue] Initial certificate issued");
         } catch (Exception e) {
             log.error("[VaultGlue] Failed to issue initial certificate", e);
             failureStrategyHandler.handle("PKI", properties.getCommonName(), e, () -> {
-                pkiOperations.issue(properties.getRole(), properties.getCommonName(),
-                        VaultGlueTimeUtils.parseTtl(properties.getTtl(), Duration.ofHours(72)));
+                pkiOperations.issue(properties.getRole(), properties.getCommonName(), getEffectiveTtl());
                 return null;
             });
         }
@@ -105,7 +103,7 @@ public class CertificateRenewalScheduler {
             CertificateBundle renewed = pkiOperations.issue(
                     properties.getRole(),
                     properties.getCommonName(),
-                    VaultGlueTimeUtils.parseTtl(properties.getTtl(), Duration.ofHours(72)));
+                    getEffectiveTtl());
 
             eventPublisher.publish(new CertificateRenewedEvent(
                     this, "pki", properties.getCommonName(), renewed));
@@ -113,6 +111,10 @@ public class CertificateRenewalScheduler {
             log.info("[VaultGlue] Certificate renewed: serial={}, expires={}",
                     renewed.serialNumber(), renewed.expiresAt());
         }
+    }
+
+    private Duration getEffectiveTtl() {
+        return VaultGlueTimeUtils.parseTtl(properties.getTtl(), Duration.ofHours(72));
     }
 
     public void shutdown() {
