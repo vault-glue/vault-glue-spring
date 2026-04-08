@@ -23,7 +23,7 @@ public class StaticCredentialProvider {
         VaultResponse response = vaultTemplate.read(path);
         if (response == null || response.getData() == null) {
             throw new VaultGlueCredentialException(
-                    "Failed to read static credential from Vault path: " + path);
+                    "[VaultGlue] Failed to read static credential from Vault path: " + path);
         }
 
         Map<String, Object> data = response.getData();
@@ -32,7 +32,7 @@ public class StaticCredentialProvider {
 
         if (username == null || password == null) {
             throw new VaultGlueCredentialException(
-                    "Invalid credential response from Vault path: " + path);
+                    "[VaultGlue] Invalid credential response from Vault path: " + path);
         }
 
         log.debug("[VaultGlue] Static credential retrieved: username={}", username);
