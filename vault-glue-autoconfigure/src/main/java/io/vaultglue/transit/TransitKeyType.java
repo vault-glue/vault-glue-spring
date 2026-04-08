@@ -32,6 +32,6 @@ public enum TransitKeyType {
                 return type;
             }
         }
-        throw new IllegalArgumentException("Unknown transit key type: " + value);
+        throw new IllegalArgumentException("[VaultGlue] Unknown transit key type: " + value);
     }
 }
