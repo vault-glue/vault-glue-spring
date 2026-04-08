@@ -4,6 +4,26 @@
 
 ---
 
+## 2026-04-08 Cycle 5 (스킵 항목 검토)
+
+### Summary
+- 스캔 범위: Cycle 1~4 스킵 항목 5건 재검토
+- 발견: 5건 / 수정: 4건 / 스킵: 1건
+
+### Changes
+- `[refactor]` `core/VaultResponseParseUtils.java` 신규 — KV/Transit 중복 `toInt()`/`toBoolean()` 유틸 추출
+- `[refactor]` `kv/DefaultVaultKvOperations.java:163` — private toInt() → VaultResponseParseUtils 위임
+- `[refactor]` `transit/DefaultVaultTransitOperations.java:285,291` — private toInt()/toBoolean() → VaultResponseParseUtils 위임
+- `[architecture]` `database/VaultGlueCredentialException.java` 신규 — nested class → top-level 분리 (다른 엔진 exception과 일관성)
+- `[architecture]` `database/static_/StaticCredentialProvider.java:49-57` — nested exception class 제거
+- `[refactor]` `pki/CertificateRenewalScheduler.java:55,61,108` — `getEffectiveTtl()` 메서드 추출 (동일 파싱 3회 반복 제거)
+- `[quality]` `aws/VaultAwsCredentialProvider.java:51` — 매직넘버 0.8 → `RENEWAL_THRESHOLD_RATIO` 상수 추출
+
+### Skipped (최종)
+- `[architecture]` `VaultEncryptConverter` static 상태 — JPA `AttributeConverter` no-arg constructor 제약. 실무 영향 없음 (JVM당 context 1개). 멀티 context 테스트 환경에서만 이론적 충돌 가능. 구조 변경 시 API 변경 수반 → 코드 리뷰 범위 초과.
+
+---
+
 ## 2026-04-08 Cycle 4
 
 ### Summary

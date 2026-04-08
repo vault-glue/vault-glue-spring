@@ -5,6 +5,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.vault.core.VaultTemplate;
 import org.springframework.vault.support.VaultResponse;
+import io.vaultglue.database.VaultGlueCredentialException;
 
 public class StaticCredentialProvider {
 
@@ -46,13 +47,4 @@ public class StaticCredentialProvider {
         }
     }
 
-    public static class VaultGlueCredentialException extends RuntimeException {
-        public VaultGlueCredentialException(String message) {
-            super(message);
-        }
-
-        public VaultGlueCredentialException(String message, Throwable cause) {
-            super(message, cause);
-        }
-    }
 }

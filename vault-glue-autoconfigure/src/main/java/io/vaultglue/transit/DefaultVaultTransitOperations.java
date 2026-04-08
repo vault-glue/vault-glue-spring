@@ -10,6 +10,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.vault.core.VaultTemplate;
 import org.springframework.vault.support.VaultResponse;
+import io.vaultglue.core.VaultResponseParseUtils;
 
 public class DefaultVaultTransitOperations implements VaultTransitOperations {
 
@@ -283,15 +284,11 @@ public class DefaultVaultTransitOperations implements VaultTransitOperations {
     }
 
     private int toInt(Object value) {
-        if (value instanceof Number n) return n.intValue();
-        if (value instanceof String s) return Integer.parseInt(s);
-        return 0;
+        return VaultResponseParseUtils.toInt(value);
     }
 
     private boolean toBoolean(Object value) {
-        if (value instanceof Boolean b) return b;
-        if (value instanceof String s) return Boolean.parseBoolean(s);
-        return false;
+        return VaultResponseParseUtils.toBoolean(value);
     }
 
 }
