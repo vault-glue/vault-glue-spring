@@ -1,7 +1,5 @@
 package io.vaultglue.aws;
 
-import io.vaultglue.core.FailureStrategyHandler;
-import io.vaultglue.core.VaultGlueTimeUtils;
 import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -10,6 +8,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.vault.core.VaultTemplate;
 import org.springframework.vault.support.VaultResponse;
+import io.vaultglue.core.FailureStrategyHandler;
+import io.vaultglue.core.VaultGlueTimeUtils;
 
 public class VaultAwsCredentialProvider {
 

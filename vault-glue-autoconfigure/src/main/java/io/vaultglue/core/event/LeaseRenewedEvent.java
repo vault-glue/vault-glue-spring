@@ -1,7 +1,7 @@
 package io.vaultglue.core.event;
 
-import io.vaultglue.core.VaultGlueEvent;
 import java.time.Duration;
+import io.vaultglue.core.VaultGlueEvent;
 
 public class LeaseRenewedEvent extends VaultGlueEvent {
 

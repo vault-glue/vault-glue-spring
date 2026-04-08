@@ -1,8 +1,5 @@
 package io.vaultglue.autoconfigure;
 
-import io.vaultglue.core.FailureStrategyHandler;
-import io.vaultglue.core.VaultGlueEventPublisher;
-import io.vaultglue.core.VaultGlueProperties;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -11,6 +8,9 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.vault.core.VaultTemplate;
+import io.vaultglue.core.FailureStrategyHandler;
+import io.vaultglue.core.VaultGlueEventPublisher;
+import io.vaultglue.core.VaultGlueProperties;
 
 @AutoConfiguration
 @ConditionalOnClass(VaultTemplate.class)
