@@ -1,9 +1,5 @@
 package io.vaultglue.database.static_;
 
-import io.vaultglue.core.FailureStrategyHandler;
-import io.vaultglue.database.DataSourceRotator;
-import io.vaultglue.database.VaultGlueDatabaseProperties.DataSourceProperties;
-import io.vaultglue.database.VaultGlueDelegatingDataSource;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
@@ -15,6 +11,10 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import io.vaultglue.core.FailureStrategyHandler;
+import io.vaultglue.database.DataSourceRotator;
+import io.vaultglue.database.VaultGlueDatabaseProperties.DataSourceProperties;
+import io.vaultglue.database.VaultGlueDelegatingDataSource;
 
 public class StaticRefreshScheduler {
 

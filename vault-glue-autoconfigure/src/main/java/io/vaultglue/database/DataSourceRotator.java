@@ -1,15 +1,15 @@
 package io.vaultglue.database;
 
-import com.zaxxer.hikari.HikariDataSource;
-import io.vaultglue.core.VaultGlueEventPublisher;
-import io.vaultglue.core.event.CredentialRotatedEvent;
-import io.vaultglue.database.VaultGlueDatabaseProperties.DataSourceProperties;
 import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import javax.sql.DataSource;
+import com.zaxxer.hikari.HikariDataSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import io.vaultglue.core.VaultGlueEventPublisher;
+import io.vaultglue.core.event.CredentialRotatedEvent;
+import io.vaultglue.database.VaultGlueDatabaseProperties.DataSourceProperties;
 
 public class DataSourceRotator {
 

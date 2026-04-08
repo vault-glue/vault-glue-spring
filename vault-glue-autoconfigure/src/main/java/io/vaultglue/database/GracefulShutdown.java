@@ -1,9 +1,9 @@
 package io.vaultglue.database;
 
-import com.zaxxer.hikari.HikariDataSource;
-import com.zaxxer.hikari.HikariPoolMXBean;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
+import com.zaxxer.hikari.HikariDataSource;
+import com.zaxxer.hikari.HikariPoolMXBean;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -85,7 +85,7 @@ public class GracefulShutdown {
                 }
 
                 try {
-                    Thread.sleep(1000);
+                    Thread.sleep(1_000);
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                     log.warn("[VaultGlue] Graceful shutdown interrupted: {}", poolName);

@@ -1,6 +1,5 @@
 package io.vaultglue.database;
 
-import com.zaxxer.hikari.HikariDataSource;
 import java.io.Closeable;
 import java.io.PrintWriter;
 import java.sql.Connection;
@@ -8,6 +7,7 @@ import java.sql.SQLException;
 import java.time.Instant;
 import java.util.logging.Logger;
 import javax.sql.DataSource;
+import com.zaxxer.hikari.HikariDataSource;
 
 public class VaultGlueDelegatingDataSource implements DataSource, Closeable {
 

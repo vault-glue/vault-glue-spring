@@ -1,13 +1,5 @@
 package io.vaultglue.database.dynamic;
 
-import io.vaultglue.core.FailureStrategyHandler;
-import io.vaultglue.core.VaultGlueEventPublisher;
-import io.vaultglue.core.event.LeaseExpiredEvent;
-import io.vaultglue.core.event.LeaseRenewedEvent;
-import io.vaultglue.database.DataSourceRotator;
-import io.vaultglue.database.VaultDatabaseException;
-import io.vaultglue.database.VaultGlueDatabaseProperties.DataSourceProperties;
-import io.vaultglue.database.VaultGlueDelegatingDataSource;
 import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
@@ -20,6 +12,14 @@ import org.springframework.vault.core.lease.domain.RequestedSecret;
 import org.springframework.vault.core.lease.event.AfterSecretLeaseRenewedEvent;
 import org.springframework.vault.core.lease.event.SecretLeaseCreatedEvent;
 import org.springframework.vault.core.lease.event.SecretLeaseExpiredEvent;
+import io.vaultglue.core.FailureStrategyHandler;
+import io.vaultglue.core.VaultGlueEventPublisher;
+import io.vaultglue.core.event.LeaseExpiredEvent;
+import io.vaultglue.core.event.LeaseRenewedEvent;
+import io.vaultglue.database.DataSourceRotator;
+import io.vaultglue.database.VaultDatabaseException;
+import io.vaultglue.database.VaultGlueDatabaseProperties.DataSourceProperties;
+import io.vaultglue.database.VaultGlueDelegatingDataSource;
 
 public class DynamicLeaseListener {
 
