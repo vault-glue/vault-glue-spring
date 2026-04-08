@@ -35,7 +35,7 @@ public class VaultGlueProperties {
 
     public static class RetryProperties {
         private int maxAttempts = 3;
-        private long delay = 5000;
+        private long delay = 5_000;
 
         public int getMaxAttempts() {
             return maxAttempts;
