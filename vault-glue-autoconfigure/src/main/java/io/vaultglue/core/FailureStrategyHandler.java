@@ -1,10 +1,10 @@
 package io.vaultglue.core;
 
-import io.vaultglue.core.event.CredentialRotationFailedEvent;
 import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.ConfigurableApplicationContext;
+import io.vaultglue.core.event.CredentialRotationFailedEvent;
 
 public class FailureStrategyHandler {
 

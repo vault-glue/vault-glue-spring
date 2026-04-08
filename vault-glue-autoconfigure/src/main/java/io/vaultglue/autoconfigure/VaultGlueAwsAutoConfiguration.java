@@ -1,8 +1,5 @@
 package io.vaultglue.autoconfigure;
 
-import io.vaultglue.aws.VaultAwsCredentialProvider;
-import io.vaultglue.aws.VaultGlueAwsProperties;
-import io.vaultglue.core.FailureStrategyHandler;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -10,6 +7,9 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.vault.core.VaultTemplate;
+import io.vaultglue.aws.VaultAwsCredentialProvider;
+import io.vaultglue.aws.VaultGlueAwsProperties;
+import io.vaultglue.core.FailureStrategyHandler;
 
 @AutoConfiguration(after = VaultGlueCoreAutoConfiguration.class)
 @ConditionalOnProperty(prefix = "vault-glue.aws", name = "enabled", havingValue = "true")
