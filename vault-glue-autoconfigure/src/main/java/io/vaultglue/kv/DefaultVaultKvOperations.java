@@ -13,6 +13,7 @@ import org.springframework.vault.core.VaultKeyValueOperationsSupport.KeyValueBac
 import org.springframework.vault.core.VaultTemplate;
 import org.springframework.vault.support.VaultResponse;
 import org.springframework.vault.support.Versioned;
+import io.vaultglue.core.VaultResponseParseUtils;
 
 public class DefaultVaultKvOperations implements VaultKvOperations {
 
@@ -161,9 +162,7 @@ public class DefaultVaultKvOperations implements VaultKvOperations {
     }
 
     private int toInt(Object value) {
-        if (value instanceof Number n) return n.intValue();
-        if (value instanceof String s) return Integer.parseInt(s);
-        return 0;
+        return VaultResponseParseUtils.toInt(value);
     }
 
     private Instant parseInstant(Object value) {
