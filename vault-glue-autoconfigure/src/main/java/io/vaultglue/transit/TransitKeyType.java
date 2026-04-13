@@ -1,5 +1,8 @@
 package io.vaultglue.transit;
 
+import java.util.Map;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import com.fasterxml.jackson.annotation.JsonCreator;
 
 public enum TransitKeyType {
@@ -15,6 +18,9 @@ public enum TransitKeyType {
     RSA_3072("rsa-3072"),
     RSA_4096("rsa-4096");
 
+    private static final Map<String, TransitKeyType> VALUE_MAP =
+            Stream.of(values()).collect(Collectors.toUnmodifiableMap(t -> t.value, t -> t));
+
     private final String value;
 
     TransitKeyType(String value) {
@@ -27,11 +33,10 @@ public enum TransitKeyType {
 
     @JsonCreator
     public static TransitKeyType fromValue(String value) {
-        for (TransitKeyType type : values()) {
-            if (type.value.equals(value)) {
-                return type;
-            }
+        TransitKeyType type = VALUE_MAP.get(value);
+        if (type == null) {
+            throw new IllegalArgumentException("[VaultGlue] Unknown transit key type: " + value);
         }
-        throw new IllegalArgumentException("[VaultGlue] Unknown transit key type: " + value);
+        return type;
     }
 }
