@@ -1,12 +1,12 @@
 package io.vaultglue.pki;
 
 import java.time.Duration;
-import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import io.vaultglue.core.FailureStrategyHandler;
+import io.vaultglue.core.VaultGlueSchedulerUtils;
 import io.vaultglue.core.VaultGlueEventPublisher;
 import io.vaultglue.core.VaultGlueTimeUtils;
 import io.vaultglue.core.event.CertificateRenewedEvent;
@@ -29,11 +29,7 @@ public class CertificateRenewalScheduler {
         this.properties = properties;
         this.eventPublisher = eventPublisher;
         this.failureStrategyHandler = failureStrategyHandler;
-        this.scheduler = Executors.newSingleThreadScheduledExecutor(r -> {
-            Thread t = new Thread(r, "vault-glue-pki-renewal");
-            t.setDaemon(true);
-            return t;
-        });
+        this.scheduler = VaultGlueSchedulerUtils.createDaemonScheduler("vault-glue-pki-renewal");
     }
 
     public void start() {
@@ -118,14 +114,6 @@ public class CertificateRenewalScheduler {
     }
 
     public void shutdown() {
-        scheduler.shutdown();
-        try {
-            if (!scheduler.awaitTermination(5, TimeUnit.SECONDS)) {
-                scheduler.shutdownNow();
-            }
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            scheduler.shutdownNow();
-        }
+        VaultGlueSchedulerUtils.shutdownScheduler(scheduler, 5);
     }
 }
