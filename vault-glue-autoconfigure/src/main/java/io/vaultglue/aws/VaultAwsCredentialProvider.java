@@ -1,7 +1,6 @@
 package io.vaultglue.aws;
 
 import java.util.Map;
-import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
@@ -9,6 +8,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.vault.core.VaultTemplate;
 import org.springframework.vault.support.VaultResponse;
 import io.vaultglue.core.FailureStrategyHandler;
+import io.vaultglue.core.VaultGlueSchedulerUtils;
 import io.vaultglue.core.VaultGlueTimeUtils;
 
 public class VaultAwsCredentialProvider {
@@ -28,11 +28,7 @@ public class VaultAwsCredentialProvider {
         this.vaultTemplate = vaultTemplate;
         this.properties = properties;
         this.failureStrategyHandler = failureStrategyHandler;
-        this.scheduler = Executors.newSingleThreadScheduledExecutor(r -> {
-            Thread t = new Thread(r, "vault-glue-aws-credential");
-            t.setDaemon(true);
-            return t;
-        });
+        this.scheduler = VaultGlueSchedulerUtils.createDaemonScheduler("vault-glue-aws-credential");
     }
 
     public void start() {
@@ -119,15 +115,7 @@ public class VaultAwsCredentialProvider {
     }
 
     public void shutdown() {
-        scheduler.shutdown();
-        try {
-            if (!scheduler.awaitTermination(5, TimeUnit.SECONDS)) {
-                scheduler.shutdownNow();
-            }
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            scheduler.shutdownNow();
-        }
+        VaultGlueSchedulerUtils.shutdownScheduler(scheduler, 5);
     }
 
     public record AwsCredential(String accessKey, String secretKey, String securityToken) {

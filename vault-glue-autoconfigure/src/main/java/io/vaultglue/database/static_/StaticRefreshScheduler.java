@@ -5,13 +5,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import io.vaultglue.core.FailureStrategyHandler;
+import io.vaultglue.core.VaultGlueSchedulerUtils;
 import io.vaultglue.database.DataSourceRotator;
 import io.vaultglue.database.VaultGlueDatabaseProperties.DataSourceProperties;
 import io.vaultglue.database.VaultGlueDelegatingDataSource;
@@ -39,11 +39,7 @@ public class StaticRefreshScheduler {
         long interval = props.getRefreshInterval();
         log.info("[VaultGlue] Scheduling static credential refresh for '{}' every {}ms", name, interval);
 
-        ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor(r -> {
-            Thread t = new Thread(r, "vault-glue-static-refresh-" + name);
-            t.setDaemon(true);
-            return t;
-        });
+        ScheduledExecutorService scheduler = VaultGlueSchedulerUtils.createDaemonScheduler("vault-glue-static-refresh-" + name);
         schedulers.add(scheduler);
 
         scheduler.scheduleWithFixedDelay(
