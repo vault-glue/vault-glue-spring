@@ -19,6 +19,7 @@ import io.vaultglue.database.VaultGlueDelegatingDataSource;
 public class StaticRefreshScheduler {
 
     private static final Logger log = LoggerFactory.getLogger(StaticRefreshScheduler.class);
+    private static final long SHUTDOWN_TIMEOUT_SECONDS = 10;
 
     private final StaticCredentialProvider credentialProvider;
     private final DataSourceRotator rotator;
@@ -83,7 +84,7 @@ public class StaticRefreshScheduler {
         }
         for (ScheduledExecutorService scheduler : schedulers) {
             try {
-                if (!scheduler.awaitTermination(10, TimeUnit.SECONDS)) {
+                if (!scheduler.awaitTermination(SHUTDOWN_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
                     scheduler.shutdownNow();
                 }
             } catch (InterruptedException e) {

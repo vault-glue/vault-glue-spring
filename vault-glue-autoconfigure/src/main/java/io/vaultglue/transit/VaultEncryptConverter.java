@@ -102,8 +102,7 @@ public class VaultEncryptConverter implements AttributeConverter<String, String>
 
         // Unencrypted plaintext data — return as-is if migration mode is enabled
         if (allowPlaintextRead) {
-            log.warn("[VaultGlue] Plaintext data found in encrypted column (allow-plaintext-read=true). "
-                    + "Data will be encrypted on next write.");
+            log.warn("[VaultGlue] Plaintext data found in encrypted column (allow-plaintext-read=true). Data will be encrypted on next write.");
             return dbData;
         }
 

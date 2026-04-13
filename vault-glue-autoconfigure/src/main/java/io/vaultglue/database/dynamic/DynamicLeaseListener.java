@@ -24,6 +24,7 @@ import io.vaultglue.database.VaultGlueDelegatingDataSource;
 public class DynamicLeaseListener {
 
     private static final Logger log = LoggerFactory.getLogger(DynamicLeaseListener.class);
+    private static final int INITIAL_CREDENTIAL_WAIT_SECONDS = 30;
 
     private final SecretLeaseContainer leaseContainer;
     private final DataSourceRotator rotator;
@@ -79,7 +80,7 @@ public class DynamicLeaseListener {
 
         // Wait until the initial credential is ready
         try {
-            if (!initialLatch.await(30, TimeUnit.SECONDS)) {
+            if (!initialLatch.await(INITIAL_CREDENTIAL_WAIT_SECONDS, TimeUnit.SECONDS)) {
                 throw new VaultDatabaseException(
                         "[VaultGlue] Timeout waiting for initial dynamic credential for '" + name + "'");
             }

@@ -7,6 +7,8 @@ import io.vaultglue.database.VaultGlueDatabaseProperties.HikariProperties;
 
 public class HikariDataSourceFactory {
 
+    private static final long PLACEHOLDER_CONNECTION_TIMEOUT_MS = 250;
+
     private HikariDataSourceFactory() {}
 
     public static HikariDataSource create(String name, DataSourceProperties props, String username, String password) {
@@ -29,7 +31,7 @@ public class HikariDataSourceFactory {
             config.setMinimumIdle(0);
             config.setMaximumPoolSize(1);
             config.setInitializationFailTimeout(-1);
-            config.setConnectionTimeout(250);
+            config.setConnectionTimeout(PLACEHOLDER_CONNECTION_TIMEOUT_MS);
         } else {
             HikariProperties hikari = props.getHikari();
             config.setMaximumPoolSize(hikari.getMaximumPoolSize());

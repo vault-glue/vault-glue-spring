@@ -72,8 +72,8 @@ public class VaultValueBeanPostProcessor implements BeanPostProcessor, Destructi
     private Object getTargetObject(Object bean) {
         if (AopUtils.isAopProxy(bean)) {
             try {
-                return AopProxyUtils.getSingletonTarget(bean) != null
-                        ? AopProxyUtils.getSingletonTarget(bean) : bean;
+                Object target = AopProxyUtils.getSingletonTarget(bean);
+                return target != null ? target : bean;
             } catch (Exception e) {
                 return bean;
             }

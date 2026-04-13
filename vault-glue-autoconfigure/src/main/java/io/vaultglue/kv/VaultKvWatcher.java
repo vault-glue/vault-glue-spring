@@ -52,8 +52,7 @@ public class VaultKvWatcher {
             try {
                 return kvOperations.get(p);
             } catch (Exception e) {
-                log.warn("[VaultGlue] Failed to fetch initial value for watch path '{}', "
-                        + "will detect on next poll", p, e);
+                log.warn("[VaultGlue] Failed to fetch initial value for watch path '{}', will detect on next poll", p, e);
                 return Collections.emptyMap();
             }
         });

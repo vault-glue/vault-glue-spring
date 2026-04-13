@@ -44,8 +44,7 @@ public class VaultAwsCredentialProvider {
         try {
             rotate();
         } catch (Exception e) {
-            log.error("[VaultGlue] Failed to fetch initial AWS credential. "
-                    + "Scheduler will retry on next cycle.", e);
+            log.error("[VaultGlue] Failed to fetch initial AWS credential. Scheduler will retry on next cycle.", e);
         }
 
         long ttlMs = VaultGlueTimeUtils.parseTtlMs(properties.getTtl(), 3_600_000);
