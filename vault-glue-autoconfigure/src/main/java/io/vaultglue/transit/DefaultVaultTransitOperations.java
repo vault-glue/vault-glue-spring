@@ -269,7 +269,8 @@ public class DefaultVaultTransitOperations implements VaultTransitOperations {
         for (int i = 0; i < batchResults.size(); i++) {
             Map<String, Object> item = batchResults.get(i);
             if (item.containsKey("error")) {
-                items.add(new BatchResultItem<>(i, null, item.get("error").toString()));
+                Object error = item.get("error");
+                items.add(new BatchResultItem<>(i, null, error != null ? error.toString() : "unknown error"));
             } else {
                 Object value = item.get(key);
                 if (value == null) {
