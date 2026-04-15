@@ -82,9 +82,9 @@ When `auto-renew: true`, VaultGlue runs a background scheduler that:
 ```java
 @EventListener
 public void onRenewal(CertificateRenewedEvent event) {
-    CertificateBundle cert = event.getCertificateBundle();
-    log.info("Certificate renewed, serial={}, expires={}",
-        cert.serialNumber(), cert.expiresAt());
+    CertificateRenewalInfo info = event.getRenewalInfo();
+    log.info("Certificate renewed, serial={}, expires={}, remaining={}h",
+        info.serialNumber(), info.expiresAt(), info.remainingHours());
 }
 ```
 

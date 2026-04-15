@@ -1,19 +1,19 @@
 package io.vaultglue.core.event;
 
 import io.vaultglue.core.VaultGlueEvent;
-import io.vaultglue.pki.CertificateBundle;
+import io.vaultglue.pki.CertificateRenewalInfo;
 
 public class CertificateRenewedEvent extends VaultGlueEvent {
 
-    private final CertificateBundle certificateBundle;
+    private final CertificateRenewalInfo renewalInfo;
 
     public CertificateRenewedEvent(Object source, String engine, String identifier,
-                                    CertificateBundle certificateBundle) {
+                                    CertificateRenewalInfo renewalInfo) {
         super(source, engine, identifier);
-        this.certificateBundle = certificateBundle;
+        this.renewalInfo = renewalInfo;
     }
 
-    public CertificateBundle getCertificateBundle() {
-        return certificateBundle;
+    public CertificateRenewalInfo getRenewalInfo() {
+        return renewalInfo;
     }
 }

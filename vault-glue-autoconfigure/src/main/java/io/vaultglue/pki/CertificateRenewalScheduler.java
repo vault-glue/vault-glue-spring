@@ -102,7 +102,8 @@ public class CertificateRenewalScheduler {
                     getEffectiveTtl());
 
             eventPublisher.publish(new CertificateRenewedEvent(
-                    this, "pki", properties.getCommonName(), renewed));
+                    this, "pki", properties.getCommonName(),
+                    CertificateRenewalInfo.from(renewed)));
 
             log.info("[VaultGlue] Certificate renewed: serial={}, expires={}",
                     renewed.serialNumber(), renewed.expiresAt());
