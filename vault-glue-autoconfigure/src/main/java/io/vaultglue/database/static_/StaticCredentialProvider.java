@@ -5,6 +5,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.vault.core.VaultTemplate;
 import org.springframework.vault.support.VaultResponse;
+import io.vaultglue.core.VaultPathUtils;
 import io.vaultglue.database.VaultGlueCredentialException;
 
 public class StaticCredentialProvider {
@@ -18,6 +19,8 @@ public class StaticCredentialProvider {
     }
 
     public DbCredential getCredential(String backend, String role) {
+        VaultPathUtils.validatePathSegment(backend, "backend");
+        VaultPathUtils.validatePathSegment(role, "role");
         String path = backend + "/static-creds/" + role;
         log.debug("[VaultGlue] Reading static credential from: {}", path);
 

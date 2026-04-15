@@ -10,6 +10,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.vault.core.VaultTemplate;
 import org.springframework.vault.support.VaultResponse;
+import io.vaultglue.core.VaultPathUtils;
 import io.vaultglue.core.VaultResponseParseUtils;
 
 public class DefaultVaultTransitOperations implements VaultTransitOperations {
@@ -38,6 +39,10 @@ public class DefaultVaultTransitOperations implements VaultTransitOperations {
 
     @Override
     public String encrypt(String keyName, String plaintext, String context) {
+        VaultPathUtils.validatePathSegment(keyName, "keyName");
+        if (plaintext == null) {
+            throw new IllegalArgumentException("[VaultGlue] plaintext must not be null");
+        }
         Map<String, Object> body = new HashMap<>();
         body.put("plaintext", Base64.getEncoder().encodeToString(plaintext.getBytes(StandardCharsets.UTF_8)));
         if (context != null && !context.isEmpty()) {
@@ -55,6 +60,10 @@ public class DefaultVaultTransitOperations implements VaultTransitOperations {
 
     @Override
     public String decrypt(String keyName, String ciphertext, String context) {
+        VaultPathUtils.validatePathSegment(keyName, "keyName");
+        if (ciphertext == null) {
+            throw new IllegalArgumentException("[VaultGlue] ciphertext must not be null");
+        }
         Map<String, Object> body = new HashMap<>();
         body.put("ciphertext", ciphertext);
         if (context != null && !context.isEmpty()) {
@@ -74,6 +83,7 @@ public class DefaultVaultTransitOperations implements VaultTransitOperations {
 
     @Override
     public BatchResult<String> encryptBatch(String keyName, List<String> plaintexts) {
+        VaultPathUtils.validatePathSegment(keyName, "keyName");
         List<Map<String, String>> batchInput = plaintexts.stream()
                 .map(p -> Map.of("plaintext", Base64.getEncoder().encodeToString(p.getBytes(StandardCharsets.UTF_8))))
                 .toList();
@@ -87,6 +97,7 @@ public class DefaultVaultTransitOperations implements VaultTransitOperations {
 
     @Override
     public BatchResult<String> decryptBatch(String keyName, List<String> ciphertexts) {
+        VaultPathUtils.validatePathSegment(keyName, "keyName");
         List<Map<String, String>> batchInput = ciphertexts.stream()
                 .map(c -> Map.of("ciphertext", c))
                 .toList();
@@ -113,6 +124,7 @@ public class DefaultVaultTransitOperations implements VaultTransitOperations {
 
     @Override
     public String rewrap(String keyName, String ciphertext) {
+        VaultPathUtils.validatePathSegment(keyName, "keyName");
         VaultResponse response = vaultTemplate.write(
                 transitPath("rewrap/" + keyName),
                 Map.of("ciphertext", ciphertext));
@@ -121,6 +133,7 @@ public class DefaultVaultTransitOperations implements VaultTransitOperations {
 
     @Override
     public BatchResult<String> rewrapBatch(String keyName, List<String> ciphertexts) {
+        VaultPathUtils.validatePathSegment(keyName, "keyName");
         List<Map<String, String>> batchInput = ciphertexts.stream()
                 .map(c -> Map.of("ciphertext", c))
                 .toList();
@@ -141,6 +154,7 @@ public class DefaultVaultTransitOperations implements VaultTransitOperations {
 
     @Override
     public String hmac(String keyName, String data, String algorithm) {
+        VaultPathUtils.validatePathSegment(keyName, "keyName");
         Map<String, Object> body = new HashMap<>();
         body.put("input", Base64.getEncoder().encodeToString(data.getBytes(StandardCharsets.UTF_8)));
         if (algorithm != null) {
@@ -153,6 +167,7 @@ public class DefaultVaultTransitOperations implements VaultTransitOperations {
 
     @Override
     public boolean verifyHmac(String keyName, String data, String hmac) {
+        VaultPathUtils.validatePathSegment(keyName, "keyName");
         Map<String, Object> body = new HashMap<>();
         body.put("input", Base64.getEncoder().encodeToString(data.getBytes(StandardCharsets.UTF_8)));
         body.put("hmac", hmac);
@@ -170,6 +185,7 @@ public class DefaultVaultTransitOperations implements VaultTransitOperations {
 
     @Override
     public String sign(String keyName, String data, String hashAlgorithm, String signatureAlgorithm) {
+        VaultPathUtils.validatePathSegment(keyName, "keyName");
         Map<String, Object> body = new HashMap<>();
         body.put("input", Base64.getEncoder().encodeToString(data.getBytes(StandardCharsets.UTF_8)));
         if (hashAlgorithm != null) {
@@ -185,6 +201,7 @@ public class DefaultVaultTransitOperations implements VaultTransitOperations {
 
     @Override
     public boolean verify(String keyName, String data, String signature) {
+        VaultPathUtils.validatePathSegment(keyName, "keyName");
         Map<String, Object> body = new HashMap<>();
         body.put("input", Base64.getEncoder().encodeToString(data.getBytes(StandardCharsets.UTF_8)));
         body.put("signature", signature);
@@ -197,6 +214,7 @@ public class DefaultVaultTransitOperations implements VaultTransitOperations {
 
     @Override
     public void createKey(String keyName, TransitKeyType type) {
+        VaultPathUtils.validatePathSegment(keyName, "keyName");
         log.info("[VaultGlue] Creating transit key: {} ({})", keyName, type.getValue());
         vaultTemplate.write(
                 transitPath("keys/" + keyName),
@@ -205,6 +223,7 @@ public class DefaultVaultTransitOperations implements VaultTransitOperations {
 
     @Override
     public void rotateKey(String keyName) {
+        VaultPathUtils.validatePathSegment(keyName, "keyName");
         log.info("[VaultGlue] Rotating transit key: {}", keyName);
         vaultTemplate.write(transitPath("keys/" + keyName + "/rotate"), null);
     }
@@ -212,6 +231,7 @@ public class DefaultVaultTransitOperations implements VaultTransitOperations {
     @Override
     @SuppressWarnings("unchecked")
     public TransitKeyInfo getKeyInfo(String keyName) {
+        VaultPathUtils.validatePathSegment(keyName, "keyName");
         VaultResponse response = vaultTemplate.read(transitPath("keys/" + keyName));
         if (response == null || response.getData() == null) {
             return null;

@@ -5,6 +5,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.vault.core.VaultTemplate;
 import org.springframework.vault.support.VaultResponse;
+import io.vaultglue.core.VaultPathUtils;
 
 public class DefaultVaultTotpOperations implements VaultTotpOperations {
 
@@ -20,6 +21,7 @@ public class DefaultVaultTotpOperations implements VaultTotpOperations {
 
     @Override
     public TotpKey createKey(String name, String issuer, String accountName) {
+        VaultPathUtils.validatePathSegment(name, "name");
         String path = properties.getBackend() + "/keys/" + name;
         log.info("[VaultGlue] Creating TOTP key: {}", name);
 
@@ -43,6 +45,7 @@ public class DefaultVaultTotpOperations implements VaultTotpOperations {
 
     @Override
     public String generateCode(String name) {
+        VaultPathUtils.validatePathSegment(name, "name");
         String path = properties.getBackend() + "/code/" + name;
         log.debug("[VaultGlue] Generating TOTP code for: {}", name);
 
@@ -59,6 +62,7 @@ public class DefaultVaultTotpOperations implements VaultTotpOperations {
 
     @Override
     public boolean validate(String name, String code) {
+        VaultPathUtils.validatePathSegment(name, "name");
         String path = properties.getBackend() + "/code/" + name;
 
         VaultResponse response = vaultTemplate.write(path, Map.of("code", code));
@@ -76,6 +80,7 @@ public class DefaultVaultTotpOperations implements VaultTotpOperations {
 
     @Override
     public void deleteKey(String name) {
+        VaultPathUtils.validatePathSegment(name, "name");
         String path = properties.getBackend() + "/keys/" + name;
         log.info("[VaultGlue] Deleting TOTP key: {}", name);
         vaultTemplate.delete(path);

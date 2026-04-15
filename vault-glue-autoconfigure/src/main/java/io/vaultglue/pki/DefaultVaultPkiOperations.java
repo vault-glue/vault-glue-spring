@@ -9,6 +9,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.vault.core.VaultTemplate;
 import org.springframework.vault.support.VaultResponse;
+import io.vaultglue.core.VaultPathUtils;
 
 public class DefaultVaultPkiOperations implements VaultPkiOperations {
 
@@ -35,6 +36,7 @@ public class DefaultVaultPkiOperations implements VaultPkiOperations {
 
     @Override
     public CertificateBundle issue(PkiIssueRequest request) {
+        VaultPathUtils.validatePathSegment(request.role(), "role");
         String path = properties.getBackend() + "/issue/" + request.role();
         log.info("[VaultGlue] Issuing certificate: role={}, cn={}", request.role(), request.commonName());
 

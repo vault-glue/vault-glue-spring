@@ -13,6 +13,7 @@ import org.springframework.vault.core.lease.event.AfterSecretLeaseRenewedEvent;
 import org.springframework.vault.core.lease.event.SecretLeaseCreatedEvent;
 import org.springframework.vault.core.lease.event.SecretLeaseExpiredEvent;
 import io.vaultglue.core.FailureStrategyHandler;
+import io.vaultglue.core.VaultPathUtils;
 import io.vaultglue.core.VaultGlueEventPublisher;
 import io.vaultglue.core.event.LeaseExpiredEvent;
 import io.vaultglue.core.event.LeaseRenewedEvent;
@@ -47,6 +48,8 @@ public class DynamicLeaseListener {
      */
     public void register(String name, VaultGlueDelegatingDataSource delegating,
                          DataSourceProperties props) {
+        VaultPathUtils.validatePathSegment(props.getBackend(), "backend");
+        VaultPathUtils.validatePathSegment(props.getRole(), "role");
         String credPath = props.getBackend() + "/creds/" + props.getRole();
         log.info("[VaultGlue] Registering dynamic lease listener for '{}' at path: {}", name, credPath);
 
