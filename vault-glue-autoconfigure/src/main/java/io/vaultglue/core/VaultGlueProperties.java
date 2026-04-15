@@ -42,7 +42,7 @@ public class VaultGlueProperties {
         }
 
         public void setMaxAttempts(int maxAttempts) {
-            this.maxAttempts = maxAttempts;
+            this.maxAttempts = Math.max(1, Math.min(maxAttempts, 20));
         }
 
         public long getDelay() {
@@ -50,7 +50,7 @@ public class VaultGlueProperties {
         }
 
         public void setDelay(long delay) {
-            this.delay = delay;
+            this.delay = Math.max(100, Math.min(delay, 300_000));
         }
     }
 

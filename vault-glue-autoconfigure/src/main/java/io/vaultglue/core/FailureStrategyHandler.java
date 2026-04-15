@@ -1,5 +1,7 @@
 package io.vaultglue.core;
 
+import java.util.Deque;
+import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -9,10 +11,13 @@ import io.vaultglue.core.event.CredentialRotationFailedEvent;
 public class FailureStrategyHandler {
 
     private static final Logger log = LoggerFactory.getLogger(FailureStrategyHandler.class);
+    private static final int MAX_RESTARTS = 3;
+    private static final long RESTART_WINDOW_MS = 300_000; // 5 minutes
 
     private final VaultGlueProperties properties;
     private final VaultGlueEventPublisher eventPublisher;
     private final ConfigurableApplicationContext applicationContext;
+    private final Deque<Long> restartTimestamps = new ConcurrentLinkedDeque<>();
 
     public FailureStrategyHandler(VaultGlueProperties properties,
                                   VaultGlueEventPublisher eventPublisher,
@@ -38,7 +43,7 @@ public class FailureStrategyHandler {
 
         for (int attempt = 1; attempt <= maxAttempts; attempt++) {
             try {
-                long delay = baseDelay * attempt;
+                long delay = Math.min(baseDelay * attempt, 300_000);
                 log.warn("[VaultGlue] Retry {}/{} for {}/{} in {}ms",
                         attempt, maxAttempts, engine, identifier, delay);
                 Thread.sleep(delay);
@@ -64,6 +69,22 @@ public class FailureStrategyHandler {
     }
 
     private void shutdownApplication(String engine, String identifier, Exception cause) {
+        long now = System.currentTimeMillis();
+
+        // Remove timestamps outside the window
+        while (!restartTimestamps.isEmpty()
+                && now - restartTimestamps.peekFirst() > RESTART_WINDOW_MS) {
+            restartTimestamps.pollFirst();
+        }
+
+        if (restartTimestamps.size() >= MAX_RESTARTS) {
+            log.error("[VaultGlue] RESTART circuit breaker triggered for {}/{}. "
+                    + "{} restarts in {}ms window. Falling back to IGNORE.",
+                    engine, identifier, MAX_RESTARTS, RESTART_WINDOW_MS, cause);
+            return;
+        }
+
+        restartTimestamps.addLast(now);
         log.error("[VaultGlue] Fatal failure in {}/{}. Shutting down application.",
                 engine, identifier, cause);
         applicationContext.close();
