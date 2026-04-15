@@ -4,6 +4,21 @@
 
 ---
 
+## 2026-04-15 Cycle 9
+
+### Summary
+- 스캔 범위: 전체 / 62 소스 + 25 테스트 파일 (quality, security, performance, architecture, refactor 전 카테고리)
+- 발견: 0건 — 이상 없음
+
+### Reviewed
+- core→pki 패키지 의존 (CertificateRenewedEvent가 pki.CertificateBundle 참조): 같은 모듈 내 패키지 레벨 이슈로 이동 시 public API 변경 + 이벤트 패턴 깨짐. 설계 트레이드오프로 현상 유지
+- Properties 클래스 포매팅: root(VaultGlueProperties)=multi-line, domain=single-line으로 각 그룹 내 일관성 확인
+- VaultKvWatcher null 체크 (line 75): kvOperations.get() null 반환 가능하므로 방어적 코딩 정상
+- AWS access key 4자 로깅 (VaultAwsCredentialProvider:108): access key ID는 식별자(비밀 아님), 표준 관행
+- 빌드: compileJava + test 전체 통과
+
+---
+
 ## 2026-04-13 Cycle 8
 
 ### Summary
