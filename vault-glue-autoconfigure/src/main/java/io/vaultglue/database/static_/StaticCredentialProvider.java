@@ -1,6 +1,7 @@
 package io.vaultglue.database.static_;
 
 import java.util.Map;
+import java.util.Objects;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.vault.core.VaultTemplate;
@@ -44,6 +45,18 @@ public class StaticCredentialProvider {
     }
 
     public record DbCredential(String username, String password) {
+        @Override
+        public int hashCode() {
+            return Objects.hash(username);
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (!(o instanceof DbCredential that)) return false;
+            return Objects.equals(username, that.username);
+        }
+
         @Override
         public String toString() {
             return "DbCredential[username=" + username + ", password=***masked***]";

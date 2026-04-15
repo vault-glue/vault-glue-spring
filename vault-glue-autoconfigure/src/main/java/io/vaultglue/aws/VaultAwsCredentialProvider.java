@@ -1,6 +1,7 @@
 package io.vaultglue.aws;
 
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
@@ -119,10 +120,22 @@ public class VaultAwsCredentialProvider {
 
     public record AwsCredential(String accessKey, String secretKey, String securityToken) {
         @Override
+        public int hashCode() {
+            return Objects.hash(accessKey);
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (!(o instanceof AwsCredential that)) return false;
+            return Objects.equals(accessKey, that.accessKey);
+        }
+
+        @Override
         public String toString() {
             return "AwsCredential[accessKey="
-                    + accessKey.substring(0, Math.min(4, accessKey.length()))
-                    + "..., secretKey=***masked***, securityToken=***masked***]";
+                    + (accessKey != null ? accessKey.substring(0, Math.min(4, accessKey.length())) + "..." : "null")
+                    + ", secretKey=***masked***, securityToken=***masked***]";
         }
     }
 }
