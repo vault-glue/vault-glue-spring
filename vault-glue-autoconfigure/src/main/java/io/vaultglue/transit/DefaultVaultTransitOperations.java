@@ -111,8 +111,13 @@ public class DefaultVaultTransitOperations implements VaultTransitOperations {
         List<BatchResultItem<String>> decoded = rawResult.items().stream()
                 .map(item -> {
                     if (item.isSuccess()) {
-                        String plain = new String(Base64.getDecoder().decode(item.value()), StandardCharsets.UTF_8);
-                        return new BatchResultItem<String>(item.index(), plain, null);
+                        try {
+                            String plain = new String(Base64.getDecoder().decode(item.value()), StandardCharsets.UTF_8);
+                            return new BatchResultItem<String>(item.index(), plain, null);
+                        } catch (IllegalArgumentException e) {
+                            return new BatchResultItem<String>(item.index(), null,
+                                    "Invalid Base64 in decrypt response");
+                        }
                     }
                     return item;
                 })
