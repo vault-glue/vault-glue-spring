@@ -169,7 +169,15 @@ public class VaultGlueDatabaseAutoConfiguration {
         VaultGlueDelegatingDataSource delegating =
                 new VaultGlueDelegatingDataSource(name, hikari, cred.username());
 
-        refreshScheduler.schedule(name, delegating, props);
+        try {
+            refreshScheduler.schedule(name, delegating, props);
+        } catch (Exception e) {
+            if (!hikari.isClosed()) {
+                hikari.close();
+                log.debug("[VaultGlue] Closed DataSource for '{}' after scheduler registration failure", name);
+            }
+            throw e;
+        }
         return delegating;
     }
 

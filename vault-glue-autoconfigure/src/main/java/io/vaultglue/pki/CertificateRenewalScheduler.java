@@ -84,7 +84,13 @@ public class CertificateRenewalScheduler {
             log.info("[VaultGlue] Certificate expiring soon (remaining={}h), renewing...",
                     current != null ? current.getRemainingHours() : 0);
 
-            // Revoke the previous certificate
+            // Issue new certificate first to ensure availability
+            CertificateBundle renewed = pkiOperations.issue(
+                    properties.getRole(),
+                    properties.getCommonName(),
+                    getEffectiveTtl());
+
+            // Revoke old certificate only after successful issue
             if (current != null && current.serialNumber() != null) {
                 try {
                     pkiOperations.revoke(current.serialNumber());
@@ -95,11 +101,6 @@ public class CertificateRenewalScheduler {
                             current.serialNumber(), revokeEx);
                 }
             }
-
-            CertificateBundle renewed = pkiOperations.issue(
-                    properties.getRole(),
-                    properties.getCommonName(),
-                    getEffectiveTtl());
 
             eventPublisher.publish(new CertificateRenewedEvent(
                     this, "pki", properties.getCommonName(),
