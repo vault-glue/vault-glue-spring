@@ -4,6 +4,34 @@ Records design review findings, improvements, and rationale for each version.
 
 ---
 
+## 2026-04-15 — Security Hardening Review (6 tasks, CRITICAL 1 / HIGH 2 / MEDIUM 8)
+
+Security audit of the full codebase. Focused on sensitive data exposure, input validation, and resilience.
+
+### Fixes Applied
+
+| Severity | Task | Change | Rationale |
+|----------|------|--------|-----------|
+| CRITICAL | 1 | `CertificateRenewedEvent`: `CertificateBundle` → `CertificateRenewalInfo` record (serial, expiry, remainingHours only) | Event listeners received full `CertificateBundle` including private key. Any `@EventListener` could access/log the private key material |
+| HIGH | 2 | Created `VaultPathUtils` — centralized path segment validation applied to Transit, TOTP, PKI, Database operations | User-supplied key names, role names, backend paths were interpolated into Vault API paths without validation. `../` or `/` in inputs could cause path traversal |
+| HIGH | 3 | `FailureStrategyHandler`: RESTART circuit breaker (max 3 per 5-minute window → fallback to IGNORE) | Cascading failures could trigger infinite restart loops, making the application completely unrecoverable |
+| HIGH | 3 | `VaultGlueProperties.RetryProperties`: `maxAttempts` clamped to [1, 20], `delay` to [100ms, 300s] | Unbounded retry config could cause resource exhaustion (e.g., maxAttempts=999999 or delay=0) |
+| HIGH | 3 | `FailureStrategyHandler.retryWithBackoff()`: delay capped at 300s | `baseDelay * attempt` could overflow `long` for large attempt counts |
+| MEDIUM | 4 | `DbCredential`, `AwsCredential`, `CertificateBundle`: override `hashCode()`/`equals()` to exclude sensitive fields | Java record auto-generated `equals()` compared passwords/keys byte-by-byte — timing side-channel risk. `hashCode()` included secrets — hash-based data structure could leak information |
+| MEDIUM | 5 | `CertificateRenewalScheduler.doCheckAndRenew()`: issue new cert BEFORE revoking old | Previous order (revoke → issue) created a window with no valid certificate. If issuance failed after revocation, the service had no cert at all |
+| MEDIUM | 5 | `VaultGlueDatabaseAutoConfiguration.createStaticDataSource()`: try-catch around `refreshScheduler.schedule()` | If scheduler registration failed, the already-created HikariDataSource was leaked (never closed) |
+| MEDIUM | 6 | `DefaultVaultTransitOperations.decryptBatch()`: per-item Base64 error handling | Single malformed Base64 response from Vault crashed the entire batch decode. Now marks individual items as failed |
+| MEDIUM | 6 | `TransitKeyInitializer`: auto-create failure now throws `IllegalStateException` | Previously logged and swallowed — application started without required encryption keys, causing runtime encrypt/decrypt failures |
+
+### Design Decisions
+
+- **VaultPathUtils as utility class (not interceptor):** Validation at each call site is explicit and auditable. AOP/interceptor approach would be invisible and harder to verify coverage.
+- **Circuit breaker in-process (not external):** `FailureStrategyHandler` already owns restart logic. Adding a `Deque<Long>` timestamp window is simpler than introducing Resilience4j dependency for a single use case.
+- **Issue-before-revoke:** Prioritizes service availability over certificate cleanliness. A briefly un-revoked old cert is preferable to a no-cert window. Failed revocation is logged as WARN, not escalated.
+- **Record equals/hashCode override:** Intentionally breaks the record contract (all components in equals). Justified because these records carry secrets — the alternative (wrapper classes) adds unnecessary complexity for the same result.
+
+---
+
 ## 2026-04-07 — v0.4.0 Post-Release Code Review (3 passes, 15 issues)
 
 Three-pass deep review of the full codebase after v0.4.0 release. No Critical issues found on final pass.
