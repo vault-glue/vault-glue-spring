@@ -4,6 +4,39 @@
 
 ---
 
+## 2026-04-15 Security Hardening (6 tasks, CRITICAL 1 / HIGH 2 / MEDIUM 8)
+
+### Summary
+- 스캔 범위: 전체 코드베이스 보안 감사
+- 발견: 11건 (CRITICAL 1, HIGH 4, MEDIUM 6) / 수정: 11건 / 스킵: 0건
+
+### Changes
+- `[security/CRITICAL]` `core/event/CertificateRenewedEvent.java` — CertificateBundle → CertificateRenewalInfo (private key 노출 차단)
+- `[security/HIGH]` `core/VaultPathUtils.java` 신규 — 경로 세그먼트 검증 유틸 (path traversal 방지)
+- `[security/HIGH]` `transit/DefaultVaultTransitOperations.java` — 모든 public 메서드에 keyName 경로 검증 + null 체크 추가
+- `[security/HIGH]` `totp/DefaultVaultTotpOperations.java` — 모든 public 메서드에 name 경로 검증 추가
+- `[security/HIGH]` `pki/DefaultVaultPkiOperations.java` — issue() 메서드에 role 경로 검증 추가
+- `[security/HIGH]` `database/static_/StaticCredentialProvider.java`, `database/dynamic/DynamicLeaseListener.java` — backend/role 경로 검증 추가
+- `[security/HIGH]` `core/FailureStrategyHandler.java` — RESTART circuit breaker (5분 내 3회 제한 → IGNORE fallback)
+- `[security/HIGH]` `core/VaultGlueProperties.java` — retry maxAttempts [1,20], delay [100ms,300s] 범위 제한
+- `[security/MEDIUM]` `database/static_/StaticCredentialProvider.java` — DbCredential hashCode/equals에서 password 제외
+- `[security/MEDIUM]` `aws/VaultAwsCredentialProvider.java` — AwsCredential hashCode/equals에서 secretKey/securityToken 제외
+- `[security/MEDIUM]` `pki/CertificateBundle.java` — hashCode/equals에서 privateKey/certificate/issuingCa/caChain 제외
+- `[security/MEDIUM]` `pki/CertificateRenewalScheduler.java` — issue-before-revoke 순서 변경 (no-cert window 방지)
+- `[security/MEDIUM]` `autoconfigure/VaultGlueDatabaseAutoConfiguration.java` — createStaticDataSource에 try-catch 추가 (HikariDataSource 리소스 정리)
+- `[security/MEDIUM]` `transit/DefaultVaultTransitOperations.java` — decryptBatch 개별 Base64 에러 처리
+- `[security/MEDIUM]` `transit/TransitKeyInitializer.java` — auto-create 실패 시 IllegalStateException 전파 (fail-fast)
+
+### Commits
+- `b78f16e` [security] remove private key from CertificateRenewedEvent
+- `a40814b` [security] add Vault path validation to prevent path traversal
+- `6a6e80b` [security] add RESTART circuit breaker and retry bounds
+- `c7b0033` [security] exclude sensitive fields from record hashCode/equals
+- `c43f25e` [security] fix certificate renewal order and static DataSource cleanup
+- `85dd501` [security] fix batch decrypt error handling and transit key init
+
+---
+
 ## 2026-04-15 Cycle 9
 
 ### Summary
